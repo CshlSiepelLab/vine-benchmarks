@@ -1,4 +1,3 @@
-#!/usr/bin/python3
 
 import argparse
 from Bio import SeqIO
