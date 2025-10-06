@@ -23,3 +23,6 @@ testdata*
 archive*
 quinn.*
 
+# Ignore backup files from text editors
+*~
+

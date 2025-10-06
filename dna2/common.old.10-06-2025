@@ -1,4 +1,4 @@
-export SHELL=/bin/bash
+export SHELL=/usr/bin/bash
 
 # Prevent Make from removing files it thinks it should clean up
 .NOTINTERMEDIATE:
