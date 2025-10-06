@@ -1,0 +1,25 @@
+
+# To be removed soon...
+dna2_becca_test_copy
+
+# Ignore datasets
+real_dna_data
+quinn_cps
+
+# Ignore old version of the benchmark pipeline
+dna
+
+# Ignore installed dependencies
+mb
+raxml-ng
+beast
+dodonaphy
+geophy
+geophy_test_inputs
+phast
+
+# Ignore results
+testdata*
+archive*
+quinn.*
+
