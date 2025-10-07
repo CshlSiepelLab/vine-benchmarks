@@ -100,8 +100,8 @@ tree.%.mrbayes.nex: tree.%.nex
 	python3 $(OTHER_BIN)/addMrbayesModelToNex.py --in_nexus tree.$*.nex --out_nexus tree.$*.mrbayes.nex --mcmc_length $(MRBAYES_MCMCLEN)
 
 # Run MrBayes
-tree.%.mrbayes.nex.term tree.%.mrbayes.nex.p tree.%.mrbayes.nex.t: tree.%.mrbayes.nex
-	$(MRBAYES) tree.$*.mrbayes.nex > tree.$*.mrbayes.nex.term
+tree.%.mrbayes.term tree.%.mrbayes.nex.p tree.%.mrbayes.nex.t: tree.%.mrbayes.nex
+	$(MRBAYES) tree.$*.mrbayes.nex > tree.$*.mrbayes.term
 
 # Run raxml
 tree.%.raxml.term: tree.%.fa
@@ -112,6 +112,7 @@ tree.%.raxml.term: tree.%.fa
 
 # Run dodonaphy
 # What is a good --temp parameter... it's required for vi inference
+# use temp = 0.00001 in paper
 tree.%.dodonaphy.term tree.%.dodonaphy.elbo.txt tree.%.dodonaphy-time: tree.%.nex
 	mkdir tree.$*.dodonaphy
 	cp $< tree.$*.dodonaphy/tree.$*.nex
@@ -178,7 +179,7 @@ tree.%.beastlnl: tree.%.beast.log
 	echo -n "$^ " > $@
 	grep -v '^#' $^ | grep -v '^Sample' | awk '{print $$3}' | sort -nr | head -1 >> $@
 
-tree.%.mrbayeslnl: tree.%.mrbayes.nex.p tree.%.mrbayes.nex.term
+tree.%.mrbayeslnl: tree.%.mrbayes.nex.p tree.%.mrbayes.term
 	echo -n "$< " > $@
 	grep -v '^\[' $< | grep -v '^Gen' | awk '{print $$2}' | sort -nr | head -1 | awk '{printf "%.6f\n", $$1}' >> $@
 
@@ -207,10 +208,10 @@ eval.all.lnl.txt: $(LNL)
 	rm tmp
 
 # extract timing info
-tree.%.time: tree.%.beast.term tree.%.var-time tree.%.mrbayes.nex.term tree.%.raxml.term tree.%.dodonaphy-time tree.%.geophy-time
-	echo -e "samp\tbeast\tmrbayes\tvine\traxml\tdodonaphy" > $@
+tree.%.time: tree.%.beast.term tree.%.var-time tree.%.mrbayes.term tree.%.raxml.term tree.%.dodonaphy-time tree.%.geophy-time
+	echo -e "samp\tbeast\tmrbayes\tvine\traxml\tdodonaphy\tgeophy" > $@
 	grep '^Total calculation time' tree.$*.beast.term | awk '{printf "$*\t%f\t", $$4}' >> $@
-	grep 'Analysis used' tree.$*.mrbayes.nex.term | awk '{printf "%s\t", $$(3)}' >> $@
+	grep 'Analysis used' tree.$*.mrbayes.term | awk '{printf "%s\t", $$(3)}' >> $@
 	head -1 tree.$*.var-time | awk '{printf "%s\t", $$1}' | sed 's/user//' >> $@
 	grep 'Elapsed time:' tree.$*.raxml.term | awk '{printf "%s\t", $$3}' >> $@
 	head -1 tree.$*.dodonaphy-time | awk '{printf "%s\t", $$1}' | sed 's/user//' >> $@
