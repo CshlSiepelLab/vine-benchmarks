@@ -85,7 +85,7 @@ tree.%.beast.xml:
 
 tree.%.beast.term tree.%.beast-tree.trees tree.%.beast.log: tree.%.beast.xml tree.%.fa
 	rm -f tree.$*.beast-tree.trees tree.$*.beast.log
-	"$(BEAST)" -java -working -D fastapath=tree.$*.fa -D mcmclength=$(MCMCLEN) $< > tree.$*.beast.term
+	"$(BEAST)" -java -working -D fastapath=tree.$*.fa -D mcmclength=$(BEAST_MCMCLEN) $< > tree.$*.beast.term
 
 tree.%.beast.nwk: tree.%.beast-tree.trees
 	python3 "$(ROOT)/time2subs.py" $^ tmp.nex
@@ -97,7 +97,7 @@ tree.%nex: tree.%.fa
 
 # MrBayes input file prep (convert fasta to nexus and add MrBayes block to the end of nexus to specify the model)
 tree.%.mrbayes.nex: tree.%.nex
-	python3 $(OTHER_BIN)/addMrbayesModelToNex.py --in_nexus tree.$*.nex --out_nexus tree.$*.mrbayes.nex --mcmc_length $(MCMCLEN)
+	python3 $(OTHER_BIN)/addMrbayesModelToNex.py --in_nexus tree.$*.nex --out_nexus tree.$*.mrbayes.nex --mcmc_length $(MRBAYES_MCMCLEN)
 
 # Run MrBayes
 tree.%.mrbayes.nex.term tree.%.mrbayes.nex.p tree.%.mrbayes.nex.t: tree.%.mrbayes.nex
@@ -107,7 +107,7 @@ tree.%.mrbayes.nex.term tree.%.mrbayes.nex.p tree.%.mrbayes.nex.t: tree.%.mrbaye
 tree.%.raxml.term: tree.%.fa
 	rm -f $@
 	sed 's/> />/g' $< > tree.$*.raxml.fa
-	$(OTHER_BIN)/raxml-ng --msa tree.$*.raxml.fa --model HKY+F --prefix tree.$*. --search1 --threads 1 > tree.$*.raxml.term
+	$(OTHER_BIN)/raxml-ng --msa tree.$*.raxml.fa --model HKY+F --prefix tree.$* --search1 --threads 1 > tree.$*.raxml.term
 	rm -f tree.$*.raxml.fa
 
 # Run dodonaphy
@@ -125,8 +125,8 @@ tree.%.dodonaphy.term tree.%.dodonaphy.elbo.txt tree.%.dodonaphy-time: tree.%.ne
 		--temp 0.5 \
 		--prior "exponential" \
 		--connect nj \
-		--epochs 100 \
-		--draws 10 \
+		--epochs 1000 \
+		--draws 1000 \
 		--overwrite > tree.$*.dodonaphy.term
 	rm -f tree.$*.dodonaphy/tree.$*.nex
 	find ./tree.$*.dodonaphy/ -type f -exec bash -c 'for file; do mv "$$file" ./tree.$*.dodonaphy.$$(basename "$$file"); done' _ {} +
@@ -329,5 +329,5 @@ clean:
 	rm -rf $(TREES) $(FA) $(MOD) $(ML) $(MLMOD) $(NJMOD) $(NJ) $(VAR) $(VARNEX) $(EVALURF) $(LNL) $(VARLOG) $(VARTIME) tree.*.mean*.nwk tree.*.lnl.diffs tree.*.varlnl tree.*.modlnl eval.all.*.txt tree.*.beast* *.mf.txt *.rf.txt *.dist.txt  tree.*.time tree.*.lnl tree.*.mf tree.*.rf $(FAHELDOUT) $(TRACER)
 	rm -rf tree.*.mrbayes*
 	rm -rf tree.*.raxml*
-	rm -rf tree.*.dodonaphy
-	rm -rf tree.*.geophy
+	rm -rf tree.*.dodonaphy*
+	rm -rf tree.*.geophy*
