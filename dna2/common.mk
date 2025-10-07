@@ -7,7 +7,7 @@ export SHELL=/usr/bin/bash
 
 # edit for local structure; this is the only place absolute paths are used
 MAIN_DIR := /local/storage/no-backup/vine-benchmarks
-ROOT_SUFFIX := dna2_becca_test_copy
+ROOT_SUFFIX := dna2
 
 ROOT := $(MAIN_DIR)/$(ROOT_SUFFIX)
 PHAST_BIN := $(MAIN_DIR)/phast/bin
@@ -93,7 +93,7 @@ tree.%.beast.nwk: tree.%.beast-tree.trees
 	rm -f tmp.nex
 
 tree.%nex: tree.%.fa
-	$(OTHER_BIN)/fa2nex $< tree.$*.nex
+	$(OTHER_BIN)/fa2nex $< $@
 
 # MrBayes input file prep (convert fasta to nexus and add MrBayes block to the end of nexus to specify the model)
 tree.%.mrbayes.nex: tree.%.nex
@@ -107,7 +107,7 @@ tree.%.mrbayes.nex.term tree.%.mrbayes.nex.p tree.%.mrbayes.nex.t: tree.%.mrbaye
 tree.%.raxml.term: tree.%.fa
 	rm -f $@
 	sed 's/> />/g' $< > tree.$*.raxml.fa
-	$(OTHER_BIN)/raxml-ng --msa tree.$*.raxml.fa --model HKY+F --prefix tree.$*.raxml --search1 --threads 1 > tree.$*.raxml.term
+	$(OTHER_BIN)/raxml-ng --msa tree.$*.raxml.fa --model HKY+F --prefix tree.$*. --search1 --threads 1 > tree.$*.raxml.term
 	rm -f tree.$*.raxml.fa
 
 # Run dodonaphy as a container to handle several pip/python dependencies
@@ -116,20 +116,25 @@ tree.%.raxml.term: tree.%.fa
 # We likely want the --connect Nj to be used, but it currently seems to have a bug?
 # What is a good number of --epochs to use?
 # There seems to be long post-processing after the main run, so is there a way to only time the main run?
-tree.%.dodonaphy.term tree.%.dodonaphy-time: tree.%.nex
+tree.%.dodonaphy.term tree.%.dodonaphy.elbo.txt tree.%.dodonaphy-time: tree.%.nex
 	mkdir tree.$*.dodonaphy
 	cp $< tree.$*.dodonaphy/tree.$*.nex
-	/usr/bin/time -o tree.$*.dodonaphy-time singularity exec --bind $(CURDIR)/tree.$*.dodonaphy:/mnt $(DODONAPHY_SIF) \
+	singularity exec --bind $(CURDIR):/mnt $(DODONAPHY_SIF) \
+		/usr/bin/time -o /mnt/tree.$*.dodonaphy-time \
 		dodo \
-		--path_root /mnt/ \
+		--path_root /mnt/tree.$*.dodonaphy \
 		--path_dna $^ \
 		--infer vi \
 		--temp 0.5 \
 		--prior "exponential" \
 		--connect geodesics \
 		--epochs 10 \
-		--overwrite > tree.%.dodonaphy.term
+		--draws 10 \
+		--overwrite > tree.$*.dodonaphy.term
 	rm -f tree.$*.dodonaphy/tree.$*.nex
+	find ./tree.$*.dodonaphy/ -type f -exec bash -c 'for file; do mv "$$file" ./tree.$*.dodonaphy.$$(basename "$$file"); done' _ {} +
+	rm -rf tree.$*.dodonaphy
+
 
 # Run GeoPhy (in Singularity) on NEXUS; captures stdout and wall time
 tree.%.geophy.term tree.%.geophy-time: tree.%.nex
@@ -185,26 +190,33 @@ tree.%.raxmllnl: tree.%.raxml.term
 	echo -n "$^ " > $@
 	grep 'Final LogLikelihood:' $^ | awk '{printf "%.6f\n", $$3}' >> $@
 
-tree.%.lnl: tree.%.modlnl tree.%.varlnl tree.%.beastlnl tree.%.mrbayeslnl tree.%.raxmllnl
+tree.%.dodonaphylnl: tree.%.dodonaphy.elbo.txt
+	echo -n "$^ " > $@
+	awk 'NR==1 || $$1>max {max=$$1} END {printf "%.6f\n", max}' $^ >> $@
+
+tree.%.lnl: tree.%.modlnl tree.%.varlnl tree.%.beastlnl tree.%.mrbayeslnl tree.%.raxmllnl tree.%.dodonaphylnl
 	cat $^ | awk '{if (true == 0) true = $$2; printf "%s %f\n", $$0, $$2 - true}' > $@
 
 eval.all.lnl.txt: $(LNL)
-	echo "true nj ml vine beast mrbayes raxml" > tmp
+	echo -e "true\tnj\tml\tvine\tbeast\tmrbayes\traxml\tdodonaphy" > tmp
 	for file in $^ ; do \
 		awk '{printf "%s\t", $$3}' $${file} >> tmp ;\
 		echo >> tmp ;\
 	done
-	awk '{x1 += $$1; x2 += $$2; x3 += $$3; x4 += $$4; x5 += $$5; x6 += $$6; x7 += $$7; print $$0} END {printf ("-----\n%f\t%f\t%f\t%f\t%f\t%f\t%f\n", x1/(NR-1), x2/(NR-1), x3/(NR-1), x4/(NR-1), x5/(NR-1), x6/(NR-1), x7/(NR-1)) }' tmp > $@
+	awk '{x1 += $$1; x2 += $$2; x3 += $$3; x4 += $$4; x5 += $$5; x6 += $$6; x7 += $$7; x8 += $$8; print $$0} END {printf ("-----\n%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", x1/(NR-1), x2/(NR-1), x3/(NR-1), x4/(NR-1), x5/(NR-1), x6/(NR-1), x7/(NR-1), x8/(NR-1)) }' tmp > $@
 	rm tmp
 
 # extract timing info
-tree.%.time: tree.%.beast.term tree.%.var-time tree.%.mrbayes.nex.term
-	grep '^Total calculation time' tree.$*.beast.term | awk '{printf "$*\t%f\t", $$4}' > $@
+tree.%.time: tree.%.beast.term tree.%.var-time tree.%.mrbayes.nex.term tree.%.raxml.term tree.%.dodonaphy-time
+	echo -e "samp\tbeast\tmrbayes\tvine\traxml\tdodonaphy" > $@
+	grep '^Total calculation time' tree.$*.beast.term | awk '{printf "$*\t%f\t", $$4}' >> $@
 	grep 'Analysis used' tree.$*.mrbayes.nex.term | awk '{printf "%s\t", $$(3)}' >> $@
-	head -1 tree.$*.var-time | awk '{print $$1}' | sed 's/user//' >> $@
+	head -1 tree.$*.var-time | awk '{printf "%s\t", $$1}' | sed 's/user//' >> $@
+	grep 'Elapsed time:' tree.$*.raxml.term | awk '{printf "%s\t", $$3}' >> $@
+	head -1 tree.$*.dodonaphy-time | awk '{printf "%s\n", $$1}' | sed 's/user//' >> $@
 
 eval.all.time.txt: $(TIME)
-	cat $(TIME) | awk 'BEGIN{printf "samp\tbeast\tmrbayes\tvine\tspeedup_beast\tspeedup_mrbayes\n"} {x1 += $$2; x2 += $$3; x3 += $$4; printf "%d\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\n", $$1, $$2, $$3, $$4, $$2/$$4, $$3/$$4} END { printf "-----------------------------------------\nall\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\n", x1/NR, x2/NR, x3/NR, x1/x3, x2/x3 }' > $@
+	awk 'FNR==1 && NR==1 {print; next} FNR==2 {print; for(i=2;i<=NF;i++) sum[i]+=$$i; n++} END {if(n>0){printf "-----------------------------------------\nall"; for(i=2;i<=NF;i++) printf "\t%.2f", sum[i]/n; printf "\n"}}' $(TIME) > $@
 
 # evalTrees stuff
 # (1) modelFit
