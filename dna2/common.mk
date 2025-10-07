@@ -92,7 +92,7 @@ tree.%.beast.nwk: tree.%.beast-tree.trees
 	$(OTHER_BIN)/convertTrees.py -i nexus tmp.nex > $@
 	rm -f tmp.nex
 
-tree.%nex: tree.%.fa
+tree.%.nex: tree.%.fa
 	$(OTHER_BIN)/fa2nex $< $@
 
 # MrBayes input file prep (convert fasta to nexus and add MrBayes block to the end of nexus to specify the model)
@@ -335,7 +335,7 @@ tree.%.tr: tree.%.var.nwk.log
 
 clean:
 	rm -rf $(TREES) $(FA) $(MOD) $(ML) $(MLMOD) $(NJMOD) $(NJ) $(VAR) $(VARNEX) $(EVALURF) $(LNL) $(VARLOG) $(VARTIME) tree.*.mean*.nwk tree.*.lnl.diffs tree.*.varlnl tree.*.modlnl eval.all.*.txt tree.*.beast* *.mf.txt *.rf.txt *.dist.txt  tree.*.time tree.*.lnl tree.*.mf tree.*.rf $(FAHELDOUT) $(TRACER)
-	rm -rf tree.*.mrbayes*
+	rm -rf tree.*.mrbayes* tree.*.nex
 	rm -rf tree.*.raxml*
 	rm -rf tree.*.dodonaphy*
 	rm -rf tree.*.geophy*
