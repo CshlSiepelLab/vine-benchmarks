@@ -152,8 +152,7 @@ tree.%.geophy.term tree.%.geophy-time tree.%.geophy.eval.latest.txt: tree.%.nex
 		bash /opt/app/scripts/run_geophy.sh \
 		  -i /mnt/tree.$*.geophy.nex \
 		  -o /mnt/tree.$*.geophy \
-		  -c /mnt/tree.$*.geophy.config.yaml 
-		> tree.$*.geophy.term
+		  -c /mnt/tree.$*.geophy.config.yaml > tree.$*.geophy.term
 	rm -f tree.$*.geophy.nex
 
 # extract training likelihoods
