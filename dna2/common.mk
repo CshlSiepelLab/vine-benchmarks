@@ -110,10 +110,12 @@ tree.%.raxml.term: tree.%.fa
 	$(OTHER_BIN)/raxml-ng --msa tree.$*.raxml.fa --model HKY+F --prefix tree.$* --search1 --threads 1 > tree.$*.raxml.term
 	rm -f tree.$*.raxml.fa
 
+# Get NJ tree in nexus format
+tree.%.nj.nex: tree.%.nj.nwk
+	$(OTHER_BIN)/nwk2nex $< $@
+
 # Run dodonaphy
-# What is a good --temp parameter... it's required for vi inference
-# use temp = 0.00001 in paper
-tree.%.dodonaphy.term tree.%.dodonaphy.elbo.txt tree.%.dodonaphy-time: tree.%.nex
+tree.%.dodonaphy.term tree.%.dodonaphy.elbo.txt tree.%.dodonaphy-time: tree.%.nex tree.%.nj.nex
 	mkdir tree.$*.dodonaphy
 	cp $< tree.$*.dodonaphy/tree.$*.nex
 	singularity exec --bind $(CURDIR):/mnt $(DODONAPHY_SIF) \
@@ -121,12 +123,17 @@ tree.%.dodonaphy.term tree.%.dodonaphy.elbo.txt tree.%.dodonaphy-time: tree.%.ne
 		/usr/bin/time -o /mnt/tree.$*.dodonaphy-time \
 		dodo \
 		--path_root /mnt/tree.$*.dodonaphy \
-		--path_dna $^ \
+		--path_dna /mnt/tree.$*.nex  \
+		--start /mnt/tree.$*.nj.nex \
 		--infer vi \
-		--temp 0.5 \
+		--model JC69 \
+		--temp 0.00001 \
 		--prior "exponential" \
 		--connect nj \
-		--epochs 1000 \
+		--boosts 3 \
+		--importance 3 \
+		--curv -100 \
+		--epochs 2000 \
 		--draws 1000 \
 		--overwrite > tree.$*.dodonaphy.term
 	rm -f tree.$*.dodonaphy/tree.$*.nex
