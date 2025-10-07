@@ -132,7 +132,7 @@ tree.%.dodonaphy.term tree.%.dodonaphy.elbo.txt tree.%.dodonaphy-time: tree.%.ne
 		--connect nj \
 		--boosts 3 \
 		--importance 3 \
-		--curv -100 \
+		--curv -1 \
 		--epochs 2000 \
 		--draws 1000 \
 		--overwrite > tree.$*.dodonaphy.term
