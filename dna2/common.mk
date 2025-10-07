@@ -110,16 +110,13 @@ tree.%.raxml.term: tree.%.fa
 	$(OTHER_BIN)/raxml-ng --msa tree.$*.raxml.fa --model HKY+F --prefix tree.$*. --search1 --threads 1 > tree.$*.raxml.term
 	rm -f tree.$*.raxml.fa
 
-# Run dodonaphy as a container to handle several pip/python dependencies
-# Not yet sure what all the dodo inputs do...
-# What is a good --temp parameter?
-# We likely want the --connect Nj to be used, but it currently seems to have a bug?
-# What is a good number of --epochs to use?
-# There seems to be long post-processing after the main run, so is there a way to only time the main run?
+# Run dodonaphy
+# What is a good --temp parameter... it's required for vi inference
 tree.%.dodonaphy.term tree.%.dodonaphy.elbo.txt tree.%.dodonaphy-time: tree.%.nex
 	mkdir tree.$*.dodonaphy
 	cp $< tree.$*.dodonaphy/tree.$*.nex
 	singularity exec --bind $(CURDIR):/mnt $(DODONAPHY_SIF) \
+		env OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
 		/usr/bin/time -o /mnt/tree.$*.dodonaphy-time \
 		dodo \
 		--path_root /mnt/tree.$*.dodonaphy \
@@ -127,8 +124,8 @@ tree.%.dodonaphy.term tree.%.dodonaphy.elbo.txt tree.%.dodonaphy-time: tree.%.ne
 		--infer vi \
 		--temp 0.5 \
 		--prior "exponential" \
-		--connect geodesics \
-		--epochs 10 \
+		--connect nj \
+		--epochs 100 \
 		--draws 10 \
 		--overwrite > tree.$*.dodonaphy.term
 	rm -f tree.$*.dodonaphy/tree.$*.nex
@@ -136,21 +133,20 @@ tree.%.dodonaphy.term tree.%.dodonaphy.elbo.txt tree.%.dodonaphy-time: tree.%.ne
 	rm -rf tree.$*.dodonaphy
 
 
-# Run GeoPhy (in Singularity) on NEXUS; captures stdout and wall time
-tree.%.geophy.term tree.%.geophy-time: tree.%.nex
-	mkdir -p tree.$*.geophy/out
-	cp $< tree.$*.geophy/tree.$*.nex
-	cp $(GEOPHY_CONFIG) tree.$*.geophy/config.yaml
+# Run GeoPhy
+tree.%.geophy.term tree.%.geophy-time tree.%.geophy.eval.latest.txt: tree.%.nex
+	cp $< tree.$*.geophy.nex
+	cp $(GEOPHY_CONFIG) tree.$*.geophy.config.yaml
 	/usr/bin/time -o tree.$*.geophy-time \
 		singularity exec \
-		--bind $(CURDIR)/tree.$*.geophy:/mnt \
+		--bind $(CURDIR):/mnt \
 		$(GEOPHY_SIF) \
 		bash /opt/app/scripts/run_geophy.sh \
-		  -i /mnt/tree.$*.nex \
-		  -o /mnt/out \
-		  -c /mnt/config.yaml 
+		  -i /mnt/tree.$*.geophy.nex \
+		  -o /mnt/tree.$*.geophy \
+		  -c /mnt/tree.$*.geophy.config.yaml 
 		> tree.$*.geophy.term
-	rm -f tree.$*.geophy/tree.$*.nex
+	rm -f tree.$*.geophy.nex
 
 # extract training likelihoods
 tree.%.true.mod: tree.%.true.nwk tree.%.fa
@@ -194,26 +190,31 @@ tree.%.dodonaphylnl: tree.%.dodonaphy.elbo.txt
 	echo -n "$^ " > $@
 	awk 'NR==1 || $$1>max {max=$$1} END {printf "%.6f\n", max}' $^ >> $@
 
-tree.%.lnl: tree.%.modlnl tree.%.varlnl tree.%.beastlnl tree.%.mrbayeslnl tree.%.raxmllnl tree.%.dodonaphylnl
+tree.%.geophylnl: tree.%.geophy.eval.latest.txt
+	echo -n "$^ " > $@
+	awk 'NR==2 {printf "%.6f\n", $$4}' $^ >> $@
+
+tree.%.lnl: tree.%.modlnl tree.%.varlnl tree.%.beastlnl tree.%.mrbayeslnl tree.%.raxmllnl tree.%.dodonaphylnl tree.%.geophylnl
 	cat $^ | awk '{if (true == 0) true = $$2; printf "%s %f\n", $$0, $$2 - true}' > $@
 
 eval.all.lnl.txt: $(LNL)
-	echo -e "true\tnj\tml\tvine\tbeast\tmrbayes\traxml\tdodonaphy" > tmp
+	echo -e "true\tnj\tml\tvine\tbeast\tmrbayes\traxml\tdodonaphy\tgeophy" > tmp
 	for file in $^ ; do \
 		awk '{printf "%s\t", $$3}' $${file} >> tmp ;\
 		echo >> tmp ;\
 	done
-	awk '{x1 += $$1; x2 += $$2; x3 += $$3; x4 += $$4; x5 += $$5; x6 += $$6; x7 += $$7; x8 += $$8; print $$0} END {printf ("-----\n%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", x1/(NR-1), x2/(NR-1), x3/(NR-1), x4/(NR-1), x5/(NR-1), x6/(NR-1), x7/(NR-1), x8/(NR-1)) }' tmp > $@
+	awk '{x1 += $$1; x2 += $$2; x3 += $$3; x4 += $$4; x5 += $$5; x6 += $$6; x7 += $$7; x8 += $$8; x9 += $$9; print $$0} END {printf ("-----\n%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", x1/(NR-1), x2/(NR-1), x3/(NR-1), x4/(NR-1), x5/(NR-1), x6/(NR-1), x7/(NR-1), x8/(NR-1), x9/(NR-1)) }' tmp > $@
 	rm tmp
 
 # extract timing info
-tree.%.time: tree.%.beast.term tree.%.var-time tree.%.mrbayes.nex.term tree.%.raxml.term tree.%.dodonaphy-time
+tree.%.time: tree.%.beast.term tree.%.var-time tree.%.mrbayes.nex.term tree.%.raxml.term tree.%.dodonaphy-time tree.%.geophy-time
 	echo -e "samp\tbeast\tmrbayes\tvine\traxml\tdodonaphy" > $@
 	grep '^Total calculation time' tree.$*.beast.term | awk '{printf "$*\t%f\t", $$4}' >> $@
 	grep 'Analysis used' tree.$*.mrbayes.nex.term | awk '{printf "%s\t", $$(3)}' >> $@
 	head -1 tree.$*.var-time | awk '{printf "%s\t", $$1}' | sed 's/user//' >> $@
 	grep 'Elapsed time:' tree.$*.raxml.term | awk '{printf "%s\t", $$3}' >> $@
-	head -1 tree.$*.dodonaphy-time | awk '{printf "%s\n", $$1}' | sed 's/user//' >> $@
+	head -1 tree.$*.dodonaphy-time | awk '{printf "%s\t", $$1}' | sed 's/user//' >> $@
+	head -1 tree.$*.geophy-time | awk '{printf "%s\n", $$1}' | sed 's/user//' >> $@
 
 eval.all.time.txt: $(TIME)
 	awk 'FNR==1 && NR==1 {print; next} FNR==2 {print; for(i=2;i<=NF;i++) sum[i]+=$$i; n++} END {if(n>0){printf "-----------------------------------------\nall"; for(i=2;i<=NF;i++) printf "\t%.2f", sum[i]/n; printf "\n"}}' $(TIME) > $@
