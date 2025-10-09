@@ -22,6 +22,7 @@ phast
 testdata*
 archive*
 quinn.*
+tree.*
 
 # Ignore backup files from text editors
 *~
