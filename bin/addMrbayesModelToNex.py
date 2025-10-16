@@ -37,6 +37,7 @@ with open(in_nexus, "r") as in_f:
         
         # Generic run parameters
         f.write("\tset autoclose=yes nowarn=yes;\n")
+        f.write("\tset usebeagle=no;\n")
         
         # HKY model (nst=2 for HKY; rates=equal for no gamma rate variation among sites)
         f.write("\tlset nst=2 rates=equal;\n")

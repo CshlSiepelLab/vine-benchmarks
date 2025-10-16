@@ -1,0 +1,22 @@
+#!/usr/bin/gawk -f
+
+BEGIN {
+  min = 9999999999;
+  max = -9999999999;
+  sorted = 1;
+}
+
+{
+  n++;				# need to start indexing at 1 for asort (?)
+  if ($1 < min) { min = $1; }
+  if ($1 > max) { max = $1; }
+  x += $1;
+  x2 += $1 * $1;
+  val[n] = $1;
+  if (n > 1 && val[n] < val[n-1]) { sorted = 0; }
+}
+
+END {
+  if (! sorted) { asort(val); }	# use previous sorting if possible
+  printf "mean: %f, stddev: %f, min: %f, max: %f, med: %f, 95%%CI: (%f,%f)\n", x/n, sqrt(x2/n - (x/n * x/n)), min, max, val[int((n+1)/2)], val[int(0.025*n)], val[int(0.975*n)];
+}
