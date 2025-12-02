@@ -1,6 +1,7 @@
 import argparse
 import os
 import numpy as np
+from scipy.stats import norm
 import matplotlib as mpl
 mpl.use("Agg")   # Use non-interactive backend
 import matplotlib.backends.backend_pdf  # For pyinstaller inclusion
@@ -37,7 +38,7 @@ def read_log_file(logfile, param):
     return trace_values_array
 
 
-def calculate_ess_and_mcse(subset, lag_limit=2000):
+def calculate_one_chain_ess_and_mcse(subset, lag_limit=2000):
     """ 
     Calculate Effective Sample Size (ESS) and Monte Carlo Standard Error (MCSE).
     """
@@ -95,7 +96,7 @@ def calculate_ess_and_mcse(subset, lag_limit=2000):
     return ess, mcse
 
 
-def calculate_running_trace_stats(trace, burnin=0.1):
+def calculate_one_chain_running_trace_stats(trace, burnin=0.1):
     """
     Compute running stats of one trace.
     """
@@ -105,40 +106,80 @@ def calculate_running_trace_stats(trace, burnin=0.1):
     for i in range(len(trace)):
         start_idx = int(burnin * (i + 1))
         subset = trace[start_idx : i + 1]  # Apply burn-in and keep subsetting for more samples each iteration
-        ess, mcse = calculate_ess_and_mcse(subset)
+        ess, mcse = calculate_one_chain_ess_and_mcse(subset)
         ess_values.append(ess)
         mcse_values.append(mcse)
         
     return ess_values, mcse_values
 
 
-def rank_normalized_split_rhat(chains):
+def rank_normalize_chains(chains):
     """
-    Calculate rank-normalized split R-hat for multiple chains.
+    Apply Vehtari et al. (2020) + Blom (1958) rank-normalization.
+    Preserves original chain structure.
+    """
+    # Flatten all chains into one vector while remembering boundaries
+    flat = np.concatenate(chains)
+    S = len(flat)
     
-    # TODO: Check calculations here.
-    """
-    if len(chains) < 2:
-        return np.nan
-    x = np.concatenate(chains)
-    r = np.argsort(np.argsort(x)) + 1
-    N = len(x)
-    p = (r - 0.375) / (N + 0.25)
-    z = np.sqrt(2) * np.erfinv(2*p - 1)
-    split = []
+    # Compute pooled ranks
+    order = np.argsort(flat)
+    ranks = np.empty(S, dtype=float)
+    ranks[order] = np.arange(1, S+1)
+    
+    # Transform ranks to normal scores using inverse transform and fractional offset
+    z = norm.ppf((ranks - 3.0/8.0) / (S - 1.0/4.0))
+    
+    # Restore original chains
+    out = []
     idx = 0
     for c in chains:
-        L = len(c)
-        zc = z[idx:idx+L]; idx += L
-        m = L//2
-        if m < 2: return np.nan
-        split.append(zc[:m]); split.append(zc[m:])
-    means = np.array([s.mean() for s in split])
-    vars_ = np.array([s.var(ddof=1) for s in split])
-    n = np.mean([len(s) for s in split])
-    B = n * np.var(means, ddof=1)
-    W = np.mean(vars_)
-    var_hat = ((n-1)/n)*W + B/n
+        n = len(c)
+        out.append(z[idx:idx+n])
+        idx += n
+        
+    return out
+
+
+def calculate_rhat(chains, split=True, rank_normalize=False):
+    """
+    Calculate split R-hat (optionally rank normalized) for multiple chains.
+    Calculations taken from Vehtari et. al. 2020 paper at https://sites.stat.columbia.edu/gelman/research/published/Vehtari_etal_2020_rhat_ess.pdf
+    Assumes burnin has already been applied to the input.
+    """
+    # Optionally split chains in half
+    if split:
+        split_chains = []
+        for chain in chains:
+            m = len(chain) // 2
+            if m < 2:
+                print("Not enough samples to split chains for R-hat calculation.")
+                return np.nan
+            split_chains.append(chain[:m])
+            split_chains.append(chain[m:])
+    else:
+        split_chains = chains
+    
+    # Number of chains
+    M = len(split_chains)
+    
+    # Ensure a common length for all chains
+    N = min(chain.shape[0] for chain in split_chains)
+    split_chains = [c[:N] for c in chains]
+    
+    # Optionally rank-normalize chains
+    if rank_normalize:
+        chains = rank_normalize_chains(split_chains)
+    
+    # Calculate between chains variance
+    chain_means = np.array([np.mean(chain) for chain in split_chains])
+    overall_mean = np.mean(chain_means)
+    B = ((N) / (M - 1)) * np.sum((chain_means - overall_mean) ** 2)
+    
+    # Calculate within chain variance
+    W = np.mean([np.var(chain, ddof=1) for chain in split_chains])
+    
+    var_hat = (((N-1)/N)*W) + (B/N)
     r_hat = np.sqrt(var_hat / W)
     return r_hat
 
@@ -215,7 +256,7 @@ for logfile in logfiles:
     all_mcse_datasets[id] = {}
     for param in parameters:
         trace = read_log_file(logfile, param)
-        all_ess_datasets[id][param], all_mcse_datasets[id][param] = calculate_running_trace_stats(trace, burnin=burnin)
+        all_ess_datasets[id][param], all_mcse_datasets[id][param] = calculate_one_chain_running_trace_stats(trace, burnin=burnin)
         
     # Summarize across parameters for this dataset
     ess_arr = np.array([all_ess_datasets[id][param] for param in parameters])
@@ -256,7 +297,8 @@ with open(outputfile.replace(".txt", "_summary_across_logfiles.txt"), "w") as f:
     for i in range(num_samples):
         f.write(f"{i + 1}\t{mean_ess_values[i]}\t{median_ess_values[i]}\t{mean_mcse_values[i]}\t{median_mcse_values[i]}\n")
 
-    
+
+#TODO: Update this old code to reinstate plotting and scale factor output
 # # Determine crossing point for mean ESS
 # crossing_point = next((i for i, ess in enumerate(mean_ess_values) if ess >= ess_threshold), len(mean_ess_values) - 1) + 1
 # scale_factor = crossing_point / num_samples
@@ -274,9 +316,9 @@ with open(outputfile.replace(".txt", "_summary_across_logfiles.txt"), "w") as f:
 if len(logfiles) > 1:
     all_r_hat = {}
     for param in parameters:
-        param_traces = set()
+        param_traces = []
         for logfile in logfiles:
             trace = read_log_file(logfile, param)
-            param_traces.add(trace)
-            all_r_hat[param] = rank_normalized_split_rhat(param_traces)
+            param_traces.append(trace)
+            all_r_hat[param] = calculate_rhat(param_traces)
         
