@@ -96,9 +96,9 @@ def calculate_one_chain_ess_and_mcse(subset, lag_limit=2000):
     return ess, mcse
 
 
-def calculate_one_chain_running_trace_stats(trace, burnin=0.1):
+def calculate_one_chain_running_stats(trace, burnin=0.1):
     """
-    Compute running stats of one trace.
+    Compute running stats of one chain.
     """
     ess_values = []
     mcse_values = []
@@ -141,7 +141,7 @@ def rank_normalize_chains(chains):
     return out
 
 
-def calculate_rhat(chains, split=True, rank_normalize=False):
+def calculate_rhat(chains, split=True, rank_normalize=True):
     """
     Calculate split R-hat (optionally rank normalized) for multiple chains.
     Calculations taken from Vehtari et. al. 2020 paper at https://sites.stat.columbia.edu/gelman/research/published/Vehtari_etal_2020_rhat_ess.pdf
@@ -182,6 +182,21 @@ def calculate_rhat(chains, split=True, rank_normalize=False):
     var_hat = (((N-1)/N)*W) + (B/N)
     r_hat = np.sqrt(var_hat / W)
     return r_hat
+
+
+def calculate_multiple_chain_running_stats(chains, burnin=0.1):
+    """
+    Compute running stats of multiple matched chains.
+    """
+    rhat_values = []
+    chain_len = len(chains[0])
+    for i in range(chain_len):
+        start_idx = int(burnin * (i + 1))
+        subset = [chain[start_idx : i + 1] for chain in chains]  # Apply burn-in and keep subsetting for more samples each iteration
+        rhat = calculate_one_chain_ess_and_mcse(subset)
+        rhat_values.append(rhat)
+        
+    return rhat_values
 
 
 # def plot_values(mean_values, median_values, threshold, crossing_point, raw_dataset_values, output_pdf, ylabel="Effective sample size (ESS)"):
@@ -256,7 +271,7 @@ for logfile in logfiles:
     all_mcse_datasets[id] = {}
     for param in parameters:
         trace = read_log_file(logfile, param)
-        all_ess_datasets[id][param], all_mcse_datasets[id][param] = calculate_one_chain_running_trace_stats(trace, burnin=burnin)
+        all_ess_datasets[id][param], all_mcse_datasets[id][param] = calculate_one_chain_running_stats(trace, burnin=burnin)
         
     # Summarize across parameters for this dataset
     ess_arr = np.array([all_ess_datasets[id][param] for param in parameters])
@@ -314,11 +329,21 @@ with open(outputfile.replace(".txt", "_summary_across_logfiles.txt"), "w") as f:
 
 # Calculate between chain stats
 if len(logfiles) > 1:
-    all_r_hat = {}
+    all_r_hats = {}
     for param in parameters:
         param_traces = []
         for logfile in logfiles:
             trace = read_log_file(logfile, param)
             param_traces.append(trace)
-            all_r_hat[param] = calculate_rhat(param_traces)
-        
+        all_r_hats[param] = calculate_multiple_chain_running_stats(param_traces, burnin=burnin)
+
+# Output R-hat values
+with open(outputfile.replace(".txt", "_rhat.txt"), "w") as f:
+    param_header = "\t".join([f"rhat_{param}" for param in parameters])
+    f.write(f"sample_index\t{param_header}\n")
+    num_samples = len(all_r_hats[parameters[0]])
+    for i in range(num_samples):
+        rhat_str = ""
+        for param in parameters:
+            rhat_str += f"{all_r_hats[param][i]}\t"
+        f.write(f"{i + 1}\t{rhat_str.strip()}\n")
