@@ -59,8 +59,6 @@ def calculate_one_chain_ess_and_mcse(subset, lag_limit=2000):
         acf = np.fft.irfft(fx*np.conjugate(fx), nfft)[:n]
         acf /= np.arange(n,0,-1)
         return acf
-    # full = np.correlate(centered, centered, mode="full")
-    # gamma = full[n - 1 : n - 1 + max_lag + 1] / np.arange(n, n - max_lag - 1, -1)
     gamma = acf_fft(centered)[:max_lag+1]
     pairs = gamma[1:max_lag+1].reshape(-1,2).sum(axis=1)
     neg_idx = np.where(pairs <= 0)[0]
@@ -238,10 +236,6 @@ def plot_values(mean_values, median_values, threshold, crossing_point, calc_freq
     plt.ylabel(ylabel, fontsize=fs)
     plt.xticks(fontsize=fs - 8, rotation=-30, ha="left")
     plt.yticks(fontsize=fs - 4)
-    # Disable scientific notation on x-axis
-    ax = plt.gca()
-    ax.ticklabel_format(style='plain', axis='x')
-    ax.xaxis.set_major_formatter(mpl.ticker.ScalarFormatter())
     if calc_freq is not None:
         crossing_point_adjusted = crossing_point * calc_freq
     else:
@@ -265,7 +259,8 @@ parser.add_argument("--parameters", type=parse_csv_string, help="Parameter(s) (c
 parser.add_argument("--outputprefix", help="Output prefix for stat files.")
 parser.add_argument("--burnin", type=float, help="Burn-in proportion for ESS and MCSE calculations (default: 0.1)", default=0.1)
 parser.add_argument("--rhat_burnin", type=float, help="Burn-in proportion for R-hat calculation (default: 0.0)", default=0.0)
-parser.add_argument("--calc_freq", type=int, help="Frequency of ESS/MCSE/R-hat calculations (default: 1000)", default=1000)
+parser.add_argument("--ess_calc_freq", type=int, help="Frequency of ESS/MCSE calculations (default: 10000)", default=10000)
+parser.add_argument("--rhat_calc_freq", type=int, help="Frequency of R-hat calculations (default: 1000)", default=1000)
 args = parser.parse_args()
 
 logfiles = args.logfiles
@@ -273,7 +268,8 @@ parameters = args.parameters
 outputprefix = args.outputprefix
 burnin = args.burnin
 rhat_burnin = args.rhat_burnin
-calc_freq = args.calc_freq
+ess_calc_freq = args.ess_calc_freq
+rhat_calc_freq = args.rhat_calc_freq
 
 all_ess_datasets = {}
 all_mcse_datasets = {}
@@ -286,7 +282,7 @@ for logfile in logfiles:
     all_mcse_datasets[id] = {}
     for param in parameters:
         trace = read_log_file(logfile, param)
-        all_ess_datasets[id][param], all_mcse_datasets[id][param] = calculate_one_chain_running_stats(trace, burnin=burnin, calc_freq=calc_freq)
+        all_ess_datasets[id][param], all_mcse_datasets[id][param] = calculate_one_chain_running_stats(trace, burnin=burnin, calc_freq=ess_calc_freq)
         
     # Summarize across parameters for this dataset
     ess_arr = np.array([all_ess_datasets[id][param] for param in parameters])
@@ -335,7 +331,7 @@ if len(logfiles) > 1:
         for logfile in logfiles:
             trace = read_log_file(logfile, param)
             param_traces.append(trace)
-        all_r_hats[param] = calculate_multiple_chain_running_stats(param_traces, burnin=rhat_burnin, calc_freq=calc_freq)
+        all_r_hats[param] = calculate_multiple_chain_running_stats(param_traces, burnin=rhat_burnin, calc_freq=rhat_calc_freq)
 
 # Output R-hat values
 with open(f"{outputprefix}_rhat_raw.tsv", "w") as f:
@@ -375,11 +371,11 @@ with open(f"{outputprefix}_convergence_scale_factor.txt", "w") as f:
 
 # Plot ESS values
 # plot_values(mean_ess_values, median_ess_values, ess_threshold, crossing_point_ess, all_ess_datasets_flat, output_pdf=f"{outputprefix}_ess.pdf", ylabel="Effective Sample Size (ESS)")
-plot_values(None, None, ess_threshold, crossing_point_ess, calc_freq, all_ess_datasets_flat, output_pdf=f"{outputprefix}_ess.pdf", ylabel="Effective Sample Size (ESS)")
+plot_values(None, None, ess_threshold, crossing_point_ess, ess_calc_freq, all_ess_datasets_flat, output_pdf=f"{outputprefix}_ess.pdf", ylabel="Effective Sample Size (ESS)")
 
 # Plot MCSE values (ignoring threshold and crossing point for now)
 # plot_values(mean_mcse_values, median_mcse_values, mcse_threshold, crossing_point_mcse, all_mcse_datasets_flat, output_pdf=f"{outputprefix}_mcse.pdf", ylabel="Monte Carlo Standard Error (MCSE)")
-plot_values(None, None, mcse_threshold, crossing_point_mcse, calc_freq, all_mcse_datasets_flat, output_pdf=f"{outputprefix}_mcse.pdf", ylabel="Monte Carlo Standard Error (MCSE)")
+plot_values(None, None, mcse_threshold, crossing_point_mcse, ess_calc_freq, all_mcse_datasets_flat, output_pdf=f"{outputprefix}_mcse.pdf", ylabel="Monte Carlo Standard Error (MCSE)")
 
 # Plot R-hat values if multiple chains
 if len(logfiles) > 1:
@@ -387,4 +383,4 @@ if len(logfiles) > 1:
     # mean_rhat_values = np.array([np.mean([all_r_hats[param][i] for param in parameters]) for i in range(num_samples)])
     # median_rhat_values = np.array([np.median([all_r_hats[param][i] for param in parameters]) for i in range(num_samples)])
     # plot_values(mean_rhat_values, median_rhat_values, rhat_threshold, crossing_point_rhat, all_rhat_datasets_flat, output_pdf=f"{outputprefix}_rhat.pdf", ylabel="R-hat")
-    plot_values(None, None, rhat_threshold, crossing_point_rhat, calc_freq, all_rhat_datasets_flat, output_pdf=f"{outputprefix}_rhat.pdf", ylabel="R-hat")
+    plot_values(None, None, rhat_threshold, crossing_point_rhat, rhat_calc_freq, all_rhat_datasets_flat, output_pdf=f"{outputprefix}_rhat.pdf", ylabel="R-hat")
