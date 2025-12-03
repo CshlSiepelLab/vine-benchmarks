@@ -51,14 +51,20 @@ def calculate_one_chain_ess_and_mcse(subset, lag_limit=2000):
     centered = subset - np.mean(subset) # Act must be computed on mean-zero data
     
     # My version
-    # Not exact due to rounding and the order of operations, but fast
-    full = np.correlate(centered, centered, mode="full")
-    gamma = full[n - 1 : n - 1 + max_lag + 1] / np.arange(n, n - max_lag - 1, -1)
-    cutoff = max_lag
-    for k in range(2, max_lag + 1, 2):  # even lags only
-        if gamma[k-1] + gamma[k] <= 0:  # Determine cutoff lag by Geyer’s initial positive sequence rule
-            cutoff = k
-            break
+    # Not exact due to rounding and the order of operations, but faster
+    def acf_fft(x):
+        n = len(x)
+        nfft = 1 << (2*n - 1).bit_length()
+        fx = np.fft.rfft(x, nfft)
+        acf = np.fft.irfft(fx*np.conjugate(fx), nfft)[:n]
+        acf /= np.arange(n,0,-1)
+        return acf
+    # full = np.correlate(centered, centered, mode="full")
+    # gamma = full[n - 1 : n - 1 + max_lag + 1] / np.arange(n, n - max_lag - 1, -1)
+    gamma = acf_fft(centered)[:max_lag+1]
+    pairs = gamma[1:max_lag+1].reshape(-1,2).sum(axis=1)
+    neg_idx = np.where(pairs <= 0)[0]
+    cutoff = 2*(neg_idx[0] + 1) if len(neg_idx) > 0 else max_lag    # Determine cutoff lag by Geyer’s initial positive sequence rule
     varStat = gamma[0]
     for k in range(2, cutoff + 1, 2):
         varStat += 2.0 * (gamma[k-1] + gamma[k])
@@ -90,9 +96,7 @@ def calculate_one_chain_ess_and_mcse(subset, lag_limit=2000):
             ess = float(n)
         else:
             ess = n / act
-    
     mcse = np.std(subset, ddof=1) / np.sqrt(ess)
-    
     return ess, mcse
 
 
@@ -105,7 +109,6 @@ def calculate_one_chain_running_stats(trace, burnin=0.1, calc_freq=1000):
     chain_len = len(trace)
     
     for i in range(0, chain_len, calc_freq):
-        print(i)
         start_idx = int(burnin * (i + 1))
         subset = trace[start_idx : i + 1]  # Apply burn-in and keep subsetting for more samples each iteration
         ess, mcse = calculate_one_chain_ess_and_mcse(subset)
@@ -212,9 +215,9 @@ def plot_values(mean_values, median_values, threshold, crossing_point, calc_freq
     # Get x-axis points
     n = len(raw_values[list(raw_values.keys())[0]]) # Raw values must be provided; Assumes all data have same mcmc sample length
     if calc_freq is None:
-        x = lambda n: range(1, n + 1)
+        x = np.arange(1, n + 1)
     else:
-        x = lambda n: np.arange(1, n + 1) * calc_freq
+        x = np.arange(1, n + 1) * calc_freq
     # Plot mean line
     if mean_values is not None:
         plt.plot(x, mean_values, label="Mean", color="black", linestyle="-", linewidth=4)
@@ -233,8 +236,12 @@ def plot_values(mean_values, median_values, threshold, crossing_point, calc_freq
     # Configure plot appearance
     plt.xlabel("MCMC sample number", fontsize=fs)
     plt.ylabel(ylabel, fontsize=fs)
-    plt.xticks(fontsize=fs - 4)
+    plt.xticks(fontsize=fs - 8, rotation=-30, ha="left")
     plt.yticks(fontsize=fs - 4)
+    # Disable scientific notation on x-axis
+    ax = plt.gca()
+    ax.ticklabel_format(style='plain', axis='x')
+    ax.xaxis.set_major_formatter(mpl.ticker.ScalarFormatter())
     if calc_freq is not None:
         crossing_point_adjusted = crossing_point * calc_freq
     else:
@@ -275,12 +282,10 @@ mean_mcse_datasets = {}
 
 for logfile in logfiles:
     id = os.path.basename(logfile)
-    id = f"{os.path.basename(os.path.dirname(logfile))}_{os.path.basename(logfile)}"    # If basename is not unique enough
     all_ess_datasets[id] = {}
     all_mcse_datasets[id] = {}
     for param in parameters:
         trace = read_log_file(logfile, param)
-        trace = trace[0:150000]
         all_ess_datasets[id][param], all_mcse_datasets[id][param] = calculate_one_chain_running_stats(trace, burnin=burnin, calc_freq=calc_freq)
         
     # Summarize across parameters for this dataset
@@ -352,22 +357,21 @@ rhat_threshold = 1.01
 all_ess_datasets_flat = {f"{dataset}_{param}": all_ess_datasets[dataset][param] for dataset in all_ess_datasets.keys() for param in parameters}
 crossing_point_ess = next((i for i in range(len(mean_ess_values)) if all(ess_values[i] >= ess_threshold for ess_values in all_ess_datasets_flat.values())), len(mean_ess_values) - 1) + 1
 
+# Calculate mcse crossing point, but it is not used for final convergence point currently
 all_mcse_datasets_flat = {f"{dataset}_{param}": all_mcse_datasets[dataset][param] for dataset in all_mcse_datasets.keys() for param in parameters}
 crossing_point_mcse = next((i for i in range(len(mean_mcse_values)) if all(mcse_values[i] <= mcse_threshold for mcse_values in all_mcse_datasets_flat.values())), len(mean_mcse_values) - 1) + 1
-# crossing_point_mcse = 1 # Ignore MCSE threshold for now, as it is often not met
 
 num_samples = len(mean_ess_values)
 
 if len(logfiles) > 1:
     crossing_point_rhat = next((i for i in range(num_samples) if all(all_r_hats[param][i] <= rhat_threshold for param in parameters)), len(mean_ess_values) - 1) + 1
-    crossing_point = max(crossing_point_ess, crossing_point_mcse, crossing_point_rhat)   # Max of ESS, MCSE, and R-hat crossing points to ensure all criteria are met
+    crossing_point = max(crossing_point_ess, crossing_point_rhat)   # Max of ESS and R-hat crossing points to ensure all criteria are met
 else:
-    crossing_point = max(crossing_point_ess, crossing_point_mcse)  # Max of ESS and MCSE crossing points
+    crossing_point = crossing_point_ess
 
 scale_factor = crossing_point / num_samples
 with open(f"{outputprefix}_convergence_scale_factor.txt", "w") as f:
     f.write(f"{scale_factor}\n")
-
 
 # Plot ESS values
 # plot_values(mean_ess_values, median_ess_values, ess_threshold, crossing_point_ess, all_ess_datasets_flat, output_pdf=f"{outputprefix}_ess.pdf", ylabel="Effective Sample Size (ESS)")
