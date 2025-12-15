@@ -1,0 +1,88 @@
+{
+  lapack-ilaenv-scmp
+  Memcheck:Cond
+  fun:s_cmp
+  fun:ilaenv_*
+  fun:dsyev_*
+}
+{
+  lapack-ilaenv-scmp2
+  Memcheck:Value8
+  fun:s_cmp
+  fun:ilaenv_*
+  fun:dsyevd_*
+}
+{
+   supp1
+   Memcheck:Cond
+   fun:ilaenv_
+   fun:dsyev_
+   fun:mat_diagonalize_sym
+   fun:nj_estimate_mmvn_from_distances_euclidean
+   fun:main
+}
+{
+   supp2
+   Memcheck:Cond
+   fun:s_cmp
+   fun:ilaenv_
+   fun:dsytrd_
+   fun:dsyev_
+   fun:mat_diagonalize_sym
+   fun:nj_estimate_mmvn_from_distances_euclidean
+   fun:main
+}
+{
+   supp3
+   Memcheck:Cond
+   fun:ilaenv_
+   fun:dorgtr_
+   fun:dsyev_
+   fun:mat_diagonalize_sym
+   fun:nj_estimate_mmvn_from_distances_euclidean
+   fun:main
+}
+{
+   supp4
+   Memcheck:Cond
+   fun:ilaenv_
+   fun:dorgql_
+   fun:dorgtr_
+   fun:dsyev_
+   fun:mat_diagonalize_sym
+   fun:nj_estimate_mmvn_from_distances_euclidean
+   fun:main
+}
+{
+   supp5
+   Memcheck:Cond
+   fun:s_cmp
+   fun:ilaenv_
+   fun:dorgql_
+   fun:dorgtr_
+   fun:dsyev_
+   fun:mat_diagonalize_sym
+   fun:nj_estimate_mmvn_from_distances_euclidean
+   fun:main
+}
+{
+   supp6
+   Memcheck:Cond
+   fun:s_cmp
+   fun:ilaenv_
+   fun:dorgtr_
+   fun:dsyev_
+   fun:mat_diagonalize_sym
+   fun:nj_estimate_mmvn_from_distances_euclidean
+   fun:main
+}
+{
+   supp7
+   Memcheck:Cond
+   fun:ilaenv_
+   fun:dsytrd_
+   fun:dsyev_
+   fun:mat_diagonalize_sym
+   fun:nj_estimate_mmvn_from_distances_euclidean
+   fun:main
+}

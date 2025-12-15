@@ -1,0 +1,800 @@
+==578807== Memcheck, a memory error detector
+==578807== Copyright (C) 2002-2022, and GNU GPL'd, by Julian Seward et al.
+==578807== Using Valgrind-3.22.0 and LibVEX; rerun with -h for copyright info
+==578807== Command: /local/storage/no-backup/vine-benchmarks/phast-debug/phast/bin/vine -M 100 -b 10 -c 10 -D 6 -v 0 -i CRISPR quinn.80.tsv --log quinn.80.var.log --tree quinn.80.cass.nwk
+==578807== Parent PID: 571922
+==578807== 
+==578807== 
+==578807== HEAP SUMMARY:
+==578807==     in use at exit: 5,908,862 bytes in 23,925 blocks
+==578807==   total heap usage: 5,319,123 allocs, 5,295,198 frees, 1,755,774,676 bytes allocated
+==578807== 
+==578807== 5 bytes in 1 blocks are indirectly lost in loss record 1 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x409987: mm_new (phast_markov_matrix.c:41)
+==578807==    by 0x40332B: main (vine.c:372)
+==578807== 
+==578807== 8 bytes in 1 blocks are indirectly lost in loss record 2 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x404E92: vec_new (phast_vector.c:18)
+==578807==    by 0x43FE12: nj_new_covar_data (phast_nj.c:1832)
+==578807==    by 0x40325E: main (vine.c:342)
+==578807== 
+==578807== 8 bytes in 1 blocks are indirectly lost in loss record 3 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x427CDA: tm_new (phast_tree_model.c:108)
+==578807==    by 0x403358: main (vine.c:373)
+==578807== 
+==578807== 8 bytes in 1 blocks are indirectly lost in loss record 4 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x427CE6: tm_new (phast_tree_model.c:109)
+==578807==    by 0x403358: main (vine.c:373)
+==578807== 
+==578807== 16 bytes in 1 blocks are indirectly lost in loss record 8 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x40DBC8: mat_new (phast_matrix.c:22)
+==578807==    by 0x439FF1: nj_tree_to_distances (phast_nj.c:548)
+==578807==    by 0x4031FA: main (vine.c:318)
+==578807== 
+==578807== 16 bytes in 1 blocks are indirectly lost in loss record 9 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x404E7F: vec_new (phast_vector.c:17)
+==578807==    by 0x43FE12: nj_new_covar_data (phast_nj.c:1832)
+==578807==    by 0x40325E: main (vine.c:342)
+==578807== 
+==578807== 16 bytes in 1 blocks are indirectly lost in loss record 10 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x40DBC8: mat_new (phast_matrix.c:22)
+==578807==    by 0x40995C: mm_new (phast_markov_matrix.c:37)
+==578807==    by 0x40332B: main (vine.c:372)
+==578807== 
+==578807== 16 bytes in 1 blocks are indirectly lost in loss record 11 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x404E7F: vec_new (phast_vector.c:17)
+==578807==    by 0x4037AA: mvn_new (phast_mvn.c:31)
+==578807==    by 0x405AF8: mmvn_new (phast_multi_mvn.c:46)
+==578807==    by 0x4034D5: main (vine.c:390)
+==578807== 
+==578807== 16 bytes in 1 blocks are indirectly lost in loss record 12 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x40DBC8: mat_new (phast_matrix.c:22)
+==578807==    by 0x4037C4: mvn_new (phast_mvn.c:41)
+==578807==    by 0x405AF8: mmvn_new (phast_multi_mvn.c:46)
+==578807==    by 0x4034D5: main (vine.c:390)
+==578807== 
+==578807== 32 bytes in 1 blocks are indirectly lost in loss record 18 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x461AA2: lst_new (phast_lists.c:32)
+==578807==    by 0x444AA4: tr_set_nnodes (phast_trees.c:209)
+==578807==    by 0x44483D: tr_new_from_string (phast_trees.c:196)
+==578807==    by 0x4444DD: tr_new_from_file (phast_trees.c:56)
+==578807==    by 0x402EB7: main (vine.c:212)
+==578807== 
+==578807== 32 bytes in 1 blocks are indirectly lost in loss record 19 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x461AA2: lst_new (phast_lists.c:32)
+==578807==    by 0x440E97: cpr_new_table (phast_crispr.c:15)
+==578807==    by 0x4410D2: cpr_read_table (phast_crispr.c:51)
+==578807==    by 0x402AAB: main (vine.c:278)
+==578807== 
+==578807== 32 bytes in 1 blocks are indirectly lost in loss record 20 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x461AA2: lst_new (phast_lists.c:32)
+==578807==    by 0x440EA5: cpr_new_table (phast_crispr.c:16)
+==578807==    by 0x4410D2: cpr_read_table (phast_crispr.c:51)
+==578807==    by 0x402AAB: main (vine.c:278)
+==578807== 
+==578807== 32 bytes in 1 blocks are indirectly lost in loss record 21 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x461AA2: lst_new (phast_lists.c:32)
+==578807==    by 0x440EB3: cpr_new_table (phast_crispr.c:17)
+==578807==    by 0x4410D2: cpr_read_table (phast_crispr.c:51)
+==578807==    by 0x402AAB: main (vine.c:278)
+==578807== 
+==578807== 32 bytes in 1 blocks are indirectly lost in loss record 22 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x40DBDB: mat_new (phast_matrix.c:23)
+==578807==    by 0x40995C: mm_new (phast_markov_matrix.c:37)
+==578807==    by 0x40332B: main (vine.c:372)
+==578807== 
+==578807== 32 bytes in 1 blocks are indirectly lost in loss record 23 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x461AA2: lst_new (phast_lists.c:32)
+==578807==    by 0x440E97: cpr_new_table (phast_crispr.c:15)
+==578807==    by 0x440EEF: cpr_copy_table (phast_crispr.c:26)
+==578807==    by 0x443D75: cpr_new_sitewise_table (phast_crispr.c:900)
+==578807==    by 0x443F2B: cpr_prep_model (phast_crispr.c:957)
+==578807==    by 0x403394: main (vine.c:379)
+==578807== 
+==578807== 32 bytes in 1 blocks are indirectly lost in loss record 24 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x461AA2: lst_new (phast_lists.c:32)
+==578807==    by 0x440EA5: cpr_new_table (phast_crispr.c:16)
+==578807==    by 0x440EEF: cpr_copy_table (phast_crispr.c:26)
+==578807==    by 0x443D75: cpr_new_sitewise_table (phast_crispr.c:900)
+==578807==    by 0x443F2B: cpr_prep_model (phast_crispr.c:957)
+==578807==    by 0x403394: main (vine.c:379)
+==578807== 
+==578807== 32 bytes in 1 blocks are indirectly lost in loss record 25 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x461AA2: lst_new (phast_lists.c:32)
+==578807==    by 0x440EB3: cpr_new_table (phast_crispr.c:17)
+==578807==    by 0x440EEF: cpr_copy_table (phast_crispr.c:26)
+==578807==    by 0x443D75: cpr_new_sitewise_table (phast_crispr.c:900)
+==578807==    by 0x443F2B: cpr_prep_model (phast_crispr.c:957)
+==578807==    by 0x403394: main (vine.c:379)
+==578807== 
+==578807== 32 bytes in 1 blocks are indirectly lost in loss record 26 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x461AA2: lst_new (phast_lists.c:32)
+==578807==    by 0x443B58: cpr_estim_sitewise_mutrates (phast_crispr.c:744)
+==578807==    by 0x443F3A: cpr_prep_model (phast_crispr.c:960)
+==578807==    by 0x403394: main (vine.c:379)
+==578807== 
+==578807== 32 bytes in 1 blocks are indirectly lost in loss record 27 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x461AA2: lst_new (phast_lists.c:32)
+==578807==    by 0x443F46: cpr_prep_model (phast_crispr.c:964)
+==578807==    by 0x403394: main (vine.c:379)
+==578807== 
+==578807== 32 bytes in 1 blocks are indirectly lost in loss record 28 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x461AA2: lst_new (phast_lists.c:32)
+==578807==    by 0x444AA4: tr_set_nnodes (phast_trees.c:209)
+==578807==    by 0x45404A: upgma_fast_infer (phast_upgma.c:344)
+==578807==    by 0x43B8F5: nj_inf (phast_nj.c:2774)
+==578807==    by 0x43ACCB: nj_dL_dx_smartest (phast_nj.c:2299)
+==578807==    by 0x43A921: nj_compute_model_grad (phast_nj.c:715)
+==578807==    by 0x43D596: nj_variational_inf (phast_nj.c:1035)
+==578807==    by 0x403555: main (vine.c:404)
+==578807== 
+==578807== 32 bytes in 1 blocks are indirectly lost in loss record 29 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x461AA2: lst_new (phast_lists.c:32)
+==578807==    by 0x445B83: tr_postorder (phast_trees.c:694)
+==578807==    by 0x447702: tr_list_leaves (phast_trees.c:1410)
+==578807==    by 0x453803: upgma_set_dt_dD (phast_upgma.c:185)
+==578807==    by 0x454072: upgma_fast_infer (phast_upgma.c:349)
+==578807==    by 0x43B8F5: nj_inf (phast_nj.c:2774)
+==578807==    by 0x43ACCB: nj_dL_dx_smartest (phast_nj.c:2299)
+==578807==    by 0x43A921: nj_compute_model_grad (phast_nj.c:715)
+==578807==    by 0x43D596: nj_variational_inf (phast_nj.c:1035)
+==578807==    by 0x403555: main (vine.c:404)
+==578807== 
+==578807== 32 bytes in 1 blocks are indirectly lost in loss record 30 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x461AA2: lst_new (phast_lists.c:32)
+==578807==    by 0x445920: tr_preorder (phast_trees.c:629)
+==578807==    by 0x441F80: cpr_compute_log_likelihood (phast_crispr.c:373)
+==578807==    by 0x43ACF4: nj_dL_dx_smartest (phast_nj.c:2312)
+==578807==    by 0x43A921: nj_compute_model_grad (phast_nj.c:715)
+==578807==    by 0x43D596: nj_variational_inf (phast_nj.c:1035)
+==578807==    by 0x403555: main (vine.c:404)
+==578807== 
+==578807== 48 bytes in 1 blocks are indirectly lost in loss record 32 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x440E8A: cpr_new_table (phast_crispr.c:14)
+==578807==    by 0x440EEF: cpr_copy_table (phast_crispr.c:26)
+==578807==    by 0x443D75: cpr_new_sitewise_table (phast_crispr.c:900)
+==578807==    by 0x443F2B: cpr_prep_model (phast_crispr.c:957)
+==578807==    by 0x403394: main (vine.c:379)
+==578807== 
+==578807== 67 bytes in 19 blocks are indirectly lost in loss record 35 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x40B3DD: str_new (phast_stringsplus.c:23)
+==578807==    by 0x40C10F: str_split (phast_stringsplus.c:415)
+==578807==    by 0x441110: cpr_read_table (phast_crispr.c:57)
+==578807==    by 0x402AAB: main (vine.c:278)
+==578807== 
+==578807== 67 bytes in 19 blocks are indirectly lost in loss record 36 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x40B3DD: str_new (phast_stringsplus.c:23)
+==578807==    by 0x40B75D: str_dup (phast_stringsplus.c:129)
+==578807==    by 0x440F31: cpr_copy_table (phast_crispr.c:34)
+==578807==    by 0x443D75: cpr_new_sitewise_table (phast_crispr.c:900)
+==578807==    by 0x443F2B: cpr_prep_model (phast_crispr.c:957)
+==578807==    by 0x403394: main (vine.c:379)
+==578807== 
+==578807== 76 bytes in 1 blocks are indirectly lost in loss record 37 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x443D9C: cpr_new_sitewise_table (phast_crispr.c:903)
+==578807==    by 0x443F2B: cpr_prep_model (phast_crispr.c:957)
+==578807==    by 0x403394: main (vine.c:379)
+==578807== 
+==578807== 80 bytes in 1 blocks are indirectly lost in loss record 39 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x403758: mvn_new (phast_mvn.c:25)
+==578807==    by 0x405AF8: mmvn_new (phast_multi_mvn.c:46)
+==578807==    by 0x4034D5: main (vine.c:390)
+==578807== 
+==578807== 104 bytes in 1 blocks are indirectly lost in loss record 40 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x443EAA: cpr_new_model (phast_crispr.c:932)
+==578807==    by 0x402AFE: main (vine.c:284)
+==578807== 
+==578807== 128 bytes in 4 blocks are indirectly lost in loss record 41 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x40DC07: mat_new (phast_matrix.c:25)
+==578807==    by 0x40995C: mm_new (phast_markov_matrix.c:37)
+==578807==    by 0x40332B: main (vine.c:372)
+==578807== 
+==578807== 152 bytes in 1 blocks are indirectly lost in loss record 42 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x461ADC: lst_new (phast_lists.c:37)
+==578807==    by 0x443B58: cpr_estim_sitewise_mutrates (phast_crispr.c:744)
+==578807==    by 0x443F3A: cpr_prep_model (phast_crispr.c:960)
+==578807==    by 0x403394: main (vine.c:379)
+==578807== 
+==578807== 152 bytes in 1 blocks are indirectly lost in loss record 43 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x461ADC: lst_new (phast_lists.c:37)
+==578807==    by 0x443F46: cpr_prep_model (phast_crispr.c:964)
+==578807==    by 0x403394: main (vine.c:379)
+==578807== 
+==578807== 240 bytes in 1 blocks are indirectly lost in loss record 46 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x461ADC: lst_new (phast_lists.c:37)
+==578807==    by 0x440E97: cpr_new_table (phast_crispr.c:15)
+==578807==    by 0x4410D2: cpr_read_table (phast_crispr.c:51)
+==578807==    by 0x402AAB: main (vine.c:278)
+==578807== 
+==578807== 240 bytes in 1 blocks are indirectly lost in loss record 47 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x461ADC: lst_new (phast_lists.c:37)
+==578807==    by 0x440E97: cpr_new_table (phast_crispr.c:15)
+==578807==    by 0x440EEF: cpr_copy_table (phast_crispr.c:26)
+==578807==    by 0x443D75: cpr_new_sitewise_table (phast_crispr.c:900)
+==578807==    by 0x443F2B: cpr_prep_model (phast_crispr.c:957)
+==578807==    by 0x403394: main (vine.c:379)
+==578807== 
+==578807== 304 bytes in 19 blocks are indirectly lost in loss record 50 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x404E7F: vec_new (phast_vector.c:17)
+==578807==    by 0x443B9E: cpr_estim_sitewise_mutrates (phast_crispr.c:746)
+==578807==    by 0x443F3A: cpr_prep_model (phast_crispr.c:960)
+==578807==    by 0x403394: main (vine.c:379)
+==578807== 
+==578807== 320 bytes in 1 blocks are indirectly lost in loss record 51 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x427B70: tm_new (phast_tree_model.c:63)
+==578807==    by 0x403358: main (vine.c:373)
+==578807== 
+==578807== 332 bytes in 1 blocks are indirectly lost in loss record 53 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x442F35: cpr_build_seq_idx (phast_crispr.c:776)
+==578807==    by 0x442D4A: cpr_compute_log_likelihood (phast_crispr.c:210)
+==578807==    by 0x43ACF4: nj_dL_dx_smartest (phast_nj.c:2312)
+==578807==    by 0x43A921: nj_compute_model_grad (phast_nj.c:715)
+==578807==    by 0x43D596: nj_variational_inf (phast_nj.c:1035)
+==578807==    by 0x403555: main (vine.c:404)
+==578807== 
+==578807== 336 bytes in 1 blocks are indirectly lost in loss record 54 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x402ABF: main (vine.c:280)
+==578807== 
+==578807== 336 bytes in 1 blocks are indirectly lost in loss record 55 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x40DBDB: mat_new (phast_matrix.c:23)
+==578807==    by 0x439FF1: nj_tree_to_distances (phast_nj.c:548)
+==578807==    by 0x4031FA: main (vine.c:318)
+==578807== 
+==578807== 360 bytes in 1 blocks are indirectly lost in loss record 56 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x444DCA: tr_new_node (phast_trees.c:273)
+==578807==    by 0x453EE7: upgma_fast_infer (phast_upgma.c:320)
+==578807==    by 0x43B8F5: nj_inf (phast_nj.c:2774)
+==578807==    by 0x43ACCB: nj_dL_dx_smartest (phast_nj.c:2299)
+==578807==    by 0x43A921: nj_compute_model_grad (phast_nj.c:715)
+==578807==    by 0x43D596: nj_variational_inf (phast_nj.c:1035)
+==578807==    by 0x403555: main (vine.c:404)
+==578807== 
+==578807== 456 bytes in 19 blocks are indirectly lost in loss record 57 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x40B3CF: str_new (phast_stringsplus.c:22)
+==578807==    by 0x40C10F: str_split (phast_stringsplus.c:415)
+==578807==    by 0x441110: cpr_read_table (phast_crispr.c:57)
+==578807==    by 0x402AAB: main (vine.c:278)
+==578807== 
+==578807== 456 bytes in 19 blocks are indirectly lost in loss record 58 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x40B3CF: str_new (phast_stringsplus.c:22)
+==578807==    by 0x40B75D: str_dup (phast_stringsplus.c:129)
+==578807==    by 0x440F31: cpr_copy_table (phast_crispr.c:34)
+==578807==    by 0x443D75: cpr_new_sitewise_table (phast_crispr.c:900)
+==578807==    by 0x443F2B: cpr_prep_model (phast_crispr.c:957)
+==578807==    by 0x403394: main (vine.c:379)
+==578807== 
+==578807== 608 bytes in 19 blocks are indirectly lost in loss record 62 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x461AA2: lst_new (phast_lists.c:32)
+==578807==    by 0x443F8D: cpr_prep_model (phast_crispr.c:966)
+==578807==    by 0x403394: main (vine.c:379)
+==578807== 
+==578807== 616 bytes in 19 blocks are indirectly lost in loss record 63 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x404E92: vec_new (phast_vector.c:18)
+==578807==    by 0x443B9E: cpr_estim_sitewise_mutrates (phast_crispr.c:746)
+==578807==    by 0x443F3A: cpr_prep_model (phast_crispr.c:960)
+==578807==    by 0x403394: main (vine.c:379)
+==578807== 
+==578807== 664 bytes in 1 blocks are indirectly lost in loss record 64 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x427C51: tm_new (phast_tree_model.c:102)
+==578807==    by 0x403358: main (vine.c:373)
+==578807== 
+==578807== 664 bytes in 1 blocks are indirectly lost in loss record 65 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x461ADC: lst_new (phast_lists.c:37)
+==578807==    by 0x444AA4: tr_set_nnodes (phast_trees.c:209)
+==578807==    by 0x45404A: upgma_fast_infer (phast_upgma.c:344)
+==578807==    by 0x43B8F5: nj_inf (phast_nj.c:2774)
+==578807==    by 0x43ACCB: nj_dL_dx_smartest (phast_nj.c:2299)
+==578807==    by 0x43A921: nj_compute_model_grad (phast_nj.c:715)
+==578807==    by 0x43D596: nj_variational_inf (phast_nj.c:1035)
+==578807==    by 0x403555: main (vine.c:404)
+==578807== 
+==578807== 664 bytes in 1 blocks are indirectly lost in loss record 66 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x461ADC: lst_new (phast_lists.c:37)
+==578807==    by 0x445B83: tr_postorder (phast_trees.c:694)
+==578807==    by 0x447702: tr_list_leaves (phast_trees.c:1410)
+==578807==    by 0x453803: upgma_set_dt_dD (phast_upgma.c:185)
+==578807==    by 0x454072: upgma_fast_infer (phast_upgma.c:349)
+==578807==    by 0x43B8F5: nj_inf (phast_nj.c:2774)
+==578807==    by 0x43ACCB: nj_dL_dx_smartest (phast_nj.c:2299)
+==578807==    by 0x43A921: nj_compute_model_grad (phast_nj.c:715)
+==578807==    by 0x43D596: nj_variational_inf (phast_nj.c:1035)
+==578807==    by 0x403555: main (vine.c:404)
+==578807== 
+==578807== 664 bytes in 1 blocks are indirectly lost in loss record 67 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x461ADC: lst_new (phast_lists.c:37)
+==578807==    by 0x445920: tr_preorder (phast_trees.c:629)
+==578807==    by 0x441F80: cpr_compute_log_likelihood (phast_crispr.c:373)
+==578807==    by 0x43ACF4: nj_dL_dx_smartest (phast_nj.c:2312)
+==578807==    by 0x43A921: nj_compute_model_grad (phast_nj.c:715)
+==578807==    by 0x43D596: nj_variational_inf (phast_nj.c:1035)
+==578807==    by 0x403555: main (vine.c:404)
+==578807== 
+==578807== 664 bytes in 83 blocks are indirectly lost in loss record 68 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x427C96: tm_new (phast_tree_model.c:104)
+==578807==    by 0x403358: main (vine.c:373)
+==578807== 
+==578807== 800 bytes in 1 blocks are indirectly lost in loss record 72 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x461ADC: lst_new (phast_lists.c:37)
+==578807==    by 0x440EA5: cpr_new_table (phast_crispr.c:16)
+==578807==    by 0x4410D2: cpr_read_table (phast_crispr.c:51)
+==578807==    by 0x402AAB: main (vine.c:278)
+==578807== 
+==578807== 800 bytes in 1 blocks are indirectly lost in loss record 73 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x461ADC: lst_new (phast_lists.c:37)
+==578807==    by 0x440EB3: cpr_new_table (phast_crispr.c:17)
+==578807==    by 0x4410D2: cpr_read_table (phast_crispr.c:51)
+==578807==    by 0x402AAB: main (vine.c:278)
+==578807== 
+==578807== 800 bytes in 1 blocks are indirectly lost in loss record 74 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x461ADC: lst_new (phast_lists.c:37)
+==578807==    by 0x440EA5: cpr_new_table (phast_crispr.c:16)
+==578807==    by 0x440EEF: cpr_copy_table (phast_crispr.c:26)
+==578807==    by 0x443D75: cpr_new_sitewise_table (phast_crispr.c:900)
+==578807==    by 0x443F2B: cpr_prep_model (phast_crispr.c:957)
+==578807==    by 0x403394: main (vine.c:379)
+==578807== 
+==578807== 800 bytes in 1 blocks are indirectly lost in loss record 75 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x461ADC: lst_new (phast_lists.c:37)
+==578807==    by 0x440EB3: cpr_new_table (phast_crispr.c:17)
+==578807==    by 0x440EEF: cpr_copy_table (phast_crispr.c:26)
+==578807==    by 0x443D75: cpr_new_sitewise_table (phast_crispr.c:900)
+==578807==    by 0x443F2B: cpr_prep_model (phast_crispr.c:957)
+==578807==    by 0x403394: main (vine.c:379)
+==578807== 
+==578807== 800 bytes in 1 blocks are indirectly lost in loss record 76 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x461ADC: lst_new (phast_lists.c:37)
+==578807==    by 0x43F2A2: nj_var_sample (phast_nj.c:1208)
+==578807==    by 0x40358C: main (vine.c:412)
+==578807== 
+==578807== 927 bytes in 42 blocks are indirectly lost in loss record 77 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x40B3DD: str_new (phast_stringsplus.c:23)
+==578807==    by 0x40C10F: str_split (phast_stringsplus.c:415)
+==578807==    by 0x4411DD: cpr_read_table (phast_crispr.c:65)
+==578807==    by 0x402AAB: main (vine.c:278)
+==578807== 
+==578807== 927 bytes in 42 blocks are indirectly lost in loss record 78 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x40B3DD: str_new (phast_stringsplus.c:23)
+==578807==    by 0x40B75D: str_dup (phast_stringsplus.c:129)
+==578807==    by 0x440F81: cpr_copy_table (phast_crispr.c:36)
+==578807==    by 0x443D75: cpr_new_sitewise_table (phast_crispr.c:900)
+==578807==    by 0x443F2B: cpr_prep_model (phast_crispr.c:957)
+==578807==    by 0x403394: main (vine.c:379)
+==578807== 
+==578807== 1,008 bytes in 42 blocks are indirectly lost in loss record 79 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x40B3CF: str_new (phast_stringsplus.c:22)
+==578807==    by 0x40C10F: str_split (phast_stringsplus.c:415)
+==578807==    by 0x4411DD: cpr_read_table (phast_crispr.c:65)
+==578807==    by 0x402AAB: main (vine.c:278)
+==578807== 
+==578807== 1,008 bytes in 42 blocks are indirectly lost in loss record 80 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x40B3CF: str_new (phast_stringsplus.c:22)
+==578807==    by 0x40B75D: str_dup (phast_stringsplus.c:129)
+==578807==    by 0x440F81: cpr_copy_table (phast_crispr.c:36)
+==578807==    by 0x443D75: cpr_new_sitewise_table (phast_crispr.c:900)
+==578807==    by 0x443F2B: cpr_prep_model (phast_crispr.c:957)
+==578807==    by 0x403394: main (vine.c:379)
+==578807== 
+==578807== 1,112 bytes in 1 blocks are indirectly lost in loss record 81 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x409938: mm_new (phast_markov_matrix.c:31)
+==578807==    by 0x40332B: main (vine.c:372)
+==578807== 
+==578807== 1,344 bytes in 42 blocks are indirectly lost in loss record 82 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x461AA2: lst_new (phast_lists.c:32)
+==578807==    by 0x441223: cpr_read_table (phast_crispr.c:69)
+==578807==    by 0x402AAB: main (vine.c:278)
+==578807== 
+==578807== 1,344 bytes in 42 blocks are indirectly lost in loss record 83 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x461AA2: lst_new (phast_lists.c:32)
+==578807==    by 0x440FBD: cpr_copy_table (phast_crispr.c:38)
+==578807==    by 0x443D75: cpr_new_sitewise_table (phast_crispr.c:900)
+==578807==    by 0x443F2B: cpr_prep_model (phast_crispr.c:957)
+==578807==    by 0x403394: main (vine.c:379)
+==578807== 
+==578807== 1,360 bytes in 1 blocks are indirectly lost in loss record 84 of 118
+==578807==    at 0x4C40B77: realloc (vg_replace_malloc.c:1690)
+==578807==    by 0x40746E: srealloc (phast_misc.c:461)
+==578807==    by 0x448224: lst_push (lists.h:497)
+==578807==    by 0x444D2C: lst_push_ptr (lists.h:534)
+==578807==    by 0x444C2D: tr_set_nnodes (phast_trees.c:232)
+==578807==    by 0x44483D: tr_new_from_string (phast_trees.c:196)
+==578807==    by 0x4444DD: tr_new_from_file (phast_trees.c:56)
+==578807==    by 0x402EB7: main (vine.c:212)
+==578807== 
+==578807== 2,016 bytes in 1 blocks are indirectly lost in loss record 87 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x404E92: vec_new (phast_vector.c:18)
+==578807==    by 0x4037AA: mvn_new (phast_mvn.c:31)
+==578807==    by 0x405AF8: mmvn_new (phast_multi_mvn.c:46)
+==578807==    by 0x4034D5: main (vine.c:390)
+==578807== 
+==578807== 2,016 bytes in 1 blocks are indirectly lost in loss record 88 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x40DBDB: mat_new (phast_matrix.c:23)
+==578807==    by 0x4037C4: mvn_new (phast_mvn.c:41)
+==578807==    by 0x405AF8: mmvn_new (phast_multi_mvn.c:46)
+==578807==    by 0x4034D5: main (vine.c:390)
+==578807== 
+==578807== 3,072 bytes in 96 blocks are indirectly lost in loss record 89 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x461AA2: lst_new (phast_lists.c:32)
+==578807==    by 0x444AA4: tr_set_nnodes (phast_trees.c:209)
+==578807==    by 0x45404A: upgma_fast_infer (phast_upgma.c:344)
+==578807==    by 0x43B8F5: nj_inf (phast_nj.c:2774)
+==578807==    by 0x43F30E: nj_var_sample (phast_nj.c:1221)
+==578807==    by 0x40358C: main (vine.c:412)
+==578807== 
+==578807== 3,600 bytes in 10 blocks are indirectly lost in loss record 90 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x444DCA: tr_new_node (phast_trees.c:273)
+==578807==    by 0x4448DF: tr_add_child_multifurc (phast_trees.c:72)
+==578807==    by 0x444718: tr_new_from_string (phast_trees.c:146)
+==578807==    by 0x4444DD: tr_new_from_file (phast_trees.c:56)
+==578807==    by 0x402EB7: main (vine.c:212)
+==578807== 
+==578807== 6,384 bytes in 42 blocks are indirectly lost in loss record 91 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x461ADC: lst_new (phast_lists.c:37)
+==578807==    by 0x441223: cpr_read_table (phast_crispr.c:69)
+==578807==    by 0x402AAB: main (vine.c:278)
+==578807== 
+==578807== 6,384 bytes in 42 blocks are indirectly lost in loss record 92 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x461ADC: lst_new (phast_lists.c:37)
+==578807==    by 0x440FBD: cpr_copy_table (phast_crispr.c:38)
+==578807==    by 0x443D75: cpr_new_sitewise_table (phast_crispr.c:900)
+==578807==    by 0x443F2B: cpr_prep_model (phast_crispr.c:957)
+==578807==    by 0x403394: main (vine.c:379)
+==578807== 
+==578807== 9,545 bytes in 1,577 blocks are indirectly lost in loss record 93 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x409987: mm_new (phast_markov_matrix.c:41)
+==578807==    by 0x443FC6: cpr_prep_model (phast_crispr.c:968)
+==578807==    by 0x403394: main (vine.c:379)
+==578807== 
+==578807== 11,880 bytes in 33 blocks are indirectly lost in loss record 94 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x444DCA: tr_new_node (phast_trees.c:273)
+==578807==    by 0x44465B: tr_new_from_string (phast_trees.c:129)
+==578807==    by 0x4444DD: tr_new_from_file (phast_trees.c:56)
+==578807==    by 0x402EB7: main (vine.c:212)
+==578807== 
+==578807== 12,170 (48 direct, 12,122 indirect) bytes in 1 blocks are definitely lost in loss record 95 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x440E8A: cpr_new_table (phast_crispr.c:14)
+==578807==    by 0x4410D2: cpr_read_table (phast_crispr.c:51)
+==578807==    by 0x402AAB: main (vine.c:278)
+==578807== 
+==578807== 12,616 bytes in 19 blocks are indirectly lost in loss record 96 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x461ADC: lst_new (phast_lists.c:37)
+==578807==    by 0x443F8D: cpr_prep_model (phast_crispr.c:966)
+==578807==    by 0x403394: main (vine.c:379)
+==578807== 
+==578807== 14,040 bytes in 39 blocks are indirectly lost in loss record 97 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x444DCA: tr_new_node (phast_trees.c:273)
+==578807==    by 0x4446EC: tr_new_from_string (phast_trees.c:139)
+==578807==    by 0x4444DD: tr_new_from_file (phast_trees.c:56)
+==578807==    by 0x402EB7: main (vine.c:212)
+==578807== 
+==578807== 14,112 bytes in 42 blocks are indirectly lost in loss record 98 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x40DC07: mat_new (phast_matrix.c:25)
+==578807==    by 0x439FF1: nj_tree_to_distances (phast_nj.c:548)
+==578807==    by 0x4031FA: main (vine.c:318)
+==578807== 
+==578807== 14,400 bytes in 40 blocks are indirectly lost in loss record 99 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x444DCA: tr_new_node (phast_trees.c:273)
+==578807==    by 0x453DB3: upgma_fast_infer (phast_upgma.c:291)
+==578807==    by 0x43B8F5: nj_inf (phast_nj.c:2774)
+==578807==    by 0x43ACCB: nj_dL_dx_smartest (phast_nj.c:2299)
+==578807==    by 0x43A921: nj_compute_model_grad (phast_nj.c:715)
+==578807==    by 0x43D596: nj_variational_inf (phast_nj.c:1035)
+==578807==    by 0x403555: main (vine.c:404)
+==578807== 
+==578807== 14,760 bytes in 41 blocks are indirectly lost in loss record 100 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x444DCA: tr_new_node (phast_trees.c:273)
+==578807==    by 0x453C54: upgma_fast_infer (phast_upgma.c:264)
+==578807==    by 0x43B8F5: nj_inf (phast_nj.c:2774)
+==578807==    by 0x43ACCB: nj_dL_dx_smartest (phast_nj.c:2299)
+==578807==    by 0x43A921: nj_compute_model_grad (phast_nj.c:715)
+==578807==    by 0x43D596: nj_variational_inf (phast_nj.c:1035)
+==578807==    by 0x403555: main (vine.c:404)
+==578807== 
+==578807== 25,232 bytes in 1,577 blocks are indirectly lost in loss record 101 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x40DBC8: mat_new (phast_matrix.c:22)
+==578807==    by 0x40995C: mm_new (phast_markov_matrix.c:37)
+==578807==    by 0x443FC6: cpr_prep_model (phast_crispr.c:968)
+==578807==    by 0x403394: main (vine.c:379)
+==578807== 
+==578807== 31,272 (360 direct, 30,912 indirect) bytes in 1 blocks are definitely lost in loss record 102 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x444DCA: tr_new_node (phast_trees.c:273)
+==578807==    by 0x44465B: tr_new_from_string (phast_trees.c:129)
+==578807==    by 0x4444DD: tr_new_from_file (phast_trees.c:56)
+==578807==    by 0x402EB7: main (vine.c:212)
+==578807== 
+==578807== 31,968 (360 direct, 31,608 indirect) bytes in 1 blocks are definitely lost in loss record 103 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x444DCA: tr_new_node (phast_trees.c:273)
+==578807==    by 0x453C54: upgma_fast_infer (phast_upgma.c:264)
+==578807==    by 0x43B8F5: nj_inf (phast_nj.c:2774)
+==578807==    by 0x43ACCB: nj_dL_dx_smartest (phast_nj.c:2299)
+==578807==    by 0x43A921: nj_compute_model_grad (phast_nj.c:715)
+==578807==    by 0x43D596: nj_variational_inf (phast_nj.c:1035)
+==578807==    by 0x403555: main (vine.c:404)
+==578807== 
+==578807== 36,000 bytes in 100 blocks are indirectly lost in loss record 104 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x444DCA: tr_new_node (phast_trees.c:273)
+==578807==    by 0x453EE7: upgma_fast_infer (phast_upgma.c:320)
+==578807==    by 0x43B8F5: nj_inf (phast_nj.c:2774)
+==578807==    by 0x43F30E: nj_var_sample (phast_nj.c:1221)
+==578807==    by 0x40358C: main (vine.c:412)
+==578807== 
+==578807== 61,152 (1,328 direct, 59,824 indirect) bytes in 2 blocks are definitely lost in loss record 105 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x461ADC: lst_new (phast_lists.c:37)
+==578807==    by 0x444AA4: tr_set_nnodes (phast_trees.c:209)
+==578807==    by 0x45404A: upgma_fast_infer (phast_upgma.c:344)
+==578807==    by 0x43B8F5: nj_inf (phast_nj.c:2774)
+==578807==    by 0x43F30E: nj_var_sample (phast_nj.c:1221)
+==578807==    by 0x40358C: main (vine.c:412)
+==578807== 
+==578807== 63,744 bytes in 1,577 blocks are indirectly lost in loss record 106 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x40DBDB: mat_new (phast_matrix.c:23)
+==578807==    by 0x40995C: mm_new (phast_markov_matrix.c:37)
+==578807==    by 0x443FC6: cpr_prep_model (phast_crispr.c:968)
+==578807==    by 0x403394: main (vine.c:379)
+==578807== 
+==578807== 65,072 bytes in 98 blocks are indirectly lost in loss record 107 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x461ADC: lst_new (phast_lists.c:37)
+==578807==    by 0x444AA4: tr_set_nnodes (phast_trees.c:209)
+==578807==    by 0x45404A: upgma_fast_infer (phast_upgma.c:344)
+==578807==    by 0x43B8F5: nj_inf (phast_nj.c:2774)
+==578807==    by 0x43F30E: nj_var_sample (phast_nj.c:1221)
+==578807==    by 0x40358C: main (vine.c:412)
+==578807== 
+==578807== 122,304 (128 direct, 122,176 indirect) bytes in 4 blocks are definitely lost in loss record 108 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x461AA2: lst_new (phast_lists.c:32)
+==578807==    by 0x444AA4: tr_set_nnodes (phast_trees.c:209)
+==578807==    by 0x45404A: upgma_fast_infer (phast_upgma.c:344)
+==578807==    by 0x43B8F5: nj_inf (phast_nj.c:2774)
+==578807==    by 0x43F30E: nj_var_sample (phast_nj.c:1221)
+==578807==    by 0x40358C: main (vine.c:412)
+==578807== 
+==578807== 355,904 bytes in 7,968 blocks are indirectly lost in loss record 109 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x40DC07: mat_new (phast_matrix.c:25)
+==578807==    by 0x40995C: mm_new (phast_markov_matrix.c:37)
+==578807==    by 0x443FC6: cpr_prep_model (phast_crispr.c:968)
+==578807==    by 0x403394: main (vine.c:379)
+==578807== 
+==578807== 458,640 (5,400 direct, 453,240 indirect) bytes in 15 blocks are definitely lost in loss record 110 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x444DCA: tr_new_node (phast_trees.c:273)
+==578807==    by 0x453DB3: upgma_fast_infer (phast_upgma.c:291)
+==578807==    by 0x43B8F5: nj_inf (phast_nj.c:2774)
+==578807==    by 0x43F30E: nj_var_sample (phast_nj.c:1221)
+==578807==    by 0x40358C: main (vine.c:412)
+==578807== 
+==578807== 508,032 bytes in 252 blocks are indirectly lost in loss record 111 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x40DC07: mat_new (phast_matrix.c:25)
+==578807==    by 0x4037C4: mvn_new (phast_mvn.c:41)
+==578807==    by 0x405AF8: mmvn_new (phast_multi_mvn.c:46)
+==578807==    by 0x4034D5: main (vine.c:390)
+==578807== 
+==578807== 512,208 (32 direct, 512,176 indirect) bytes in 1 blocks are definitely lost in loss record 112 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x405AC8: mmvn_new (phast_multi_mvn.c:35)
+==578807==    by 0x4034D5: main (vine.c:390)
+==578807== 
+==578807== 1,009,840 (32 direct, 1,009,808 indirect) bytes in 1 blocks are definitely lost in loss record 113 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x461AA2: lst_new (phast_lists.c:32)
+==578807==    by 0x43F2A2: nj_var_sample (phast_nj.c:1208)
+==578807==    by 0x40358C: main (vine.c:412)
+==578807== 
+==578807== 1,406,496 (16,560 direct, 1,389,936 indirect) bytes in 46 blocks are definitely lost in loss record 114 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x444DCA: tr_new_node (phast_trees.c:273)
+==578807==    by 0x453C54: upgma_fast_infer (phast_upgma.c:264)
+==578807==    by 0x43B8F5: nj_inf (phast_nj.c:2774)
+==578807==    by 0x43F30E: nj_var_sample (phast_nj.c:1221)
+==578807==    by 0x40358C: main (vine.c:412)
+==578807== 
+==578807== 1,434,600 bytes in 3,985 blocks are indirectly lost in loss record 115 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x444DCA: tr_new_node (phast_trees.c:273)
+==578807==    by 0x453DB3: upgma_fast_infer (phast_upgma.c:291)
+==578807==    by 0x43B8F5: nj_inf (phast_nj.c:2774)
+==578807==    by 0x43F30E: nj_var_sample (phast_nj.c:1221)
+==578807==    by 0x40358C: main (vine.c:412)
+==578807== 
+==578807== 1,495,440 bytes in 4,154 blocks are indirectly lost in loss record 116 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x444DCA: tr_new_node (phast_trees.c:273)
+==578807==    by 0x453C54: upgma_fast_infer (phast_upgma.c:264)
+==578807==    by 0x43B8F5: nj_inf (phast_nj.c:2774)
+==578807==    by 0x43F30E: nj_var_sample (phast_nj.c:1221)
+==578807==    by 0x40358C: main (vine.c:412)
+==578807== 
+==578807== 1,753,624 bytes in 1,577 blocks are indirectly lost in loss record 117 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x409938: mm_new (phast_markov_matrix.c:31)
+==578807==    by 0x443FC6: cpr_prep_model (phast_crispr.c:968)
+==578807==    by 0x403394: main (vine.c:379)
+==578807== 
+==578807== 2,253,232 (208 direct, 2,253,024 indirect) bytes in 1 blocks are definitely lost in loss record 118 of 118
+==578807==    at 0x4C39185: malloc (vg_replace_malloc.c:442)
+==578807==    by 0x406B15: smalloc (phast_misc.c:454)
+==578807==    by 0x43FCEC: nj_new_covar_data (phast_nj.c:1792)
+==578807==    by 0x40325E: main (vine.c:342)
+==578807== 
+==578807== LEAK SUMMARY:
+==578807==    definitely lost: 24,456 bytes in 73 blocks
+==578807==    indirectly lost: 5,874,826 bytes in 23,789 blocks
+==578807==      possibly lost: 0 bytes in 0 blocks
+==578807==    still reachable: 9,580 bytes in 63 blocks
+==578807==         suppressed: 0 bytes in 0 blocks
+==578807== Reachable blocks (those to which a pointer was found) are not shown.
+==578807== To see them, rerun with: --leak-check=full --show-leak-kinds=all
+==578807== 
+==578807== For lists of detected and suppressed errors, rerun with: -s
+==578807== ERROR SUMMARY: 10 errors from 10 contexts (suppressed: 90 from 90)

@@ -3,11 +3,17 @@
 dna2_becca_test_copy
 
 # Ignore datasets
-real_dna_data
+data
 quinn_cps
 
-# Ignore old version of the benchmark pipeline
-dna
+# Ignore build files and binaries
+build
+dist
+bin
+include
+lib
+__pycache__
+*.spec
 
 # Ignore installed dependencies
 mb
@@ -18,11 +24,17 @@ geophy
 geophy_test_inputs
 phast
 
+# Ignore containers
+containers
+
 # Ignore results
 testdata*
+*taxa
 archive*
 quinn.*
 tree.*
+test*
+graphs*
 
 # Ignore backup files from text editors
 *~
