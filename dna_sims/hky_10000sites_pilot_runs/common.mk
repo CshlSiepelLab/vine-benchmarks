@@ -125,3 +125,9 @@ archive_beast:
 	mkdir $$archive_dir; \
 	mv tree.*.beast* $$archive_dir/; \
 	mv eval.all* $$archive_dir/
+
+# Pilot runs without mcmc thinning use a lot of storage space, so this target removes log files from mcmc methods to free up space
+release_storage:
+	rm tree.*.beast.*.trees tree.*.beast.*.log tree.*.mrbayes.*.p tree.*.mrbayes.*.t
+
+

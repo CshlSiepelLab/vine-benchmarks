@@ -187,7 +187,7 @@
               weight="1.0"/>
         <!-- end manually added -->
         
-        <logger id="tracelog" spec="Logger" fileName="$(filebase).log" logEvery="5000" model="@posterior" sanitiseHeaders="true" sort="smart">
+        <logger id="tracelog" spec="Logger" fileName="$(filebase).log" logEvery="$(samplefreq)" model="@posterior" sanitiseHeaders="true" sort="smart">
             <log idref="posterior"/>
             <log idref="likelihood"/>
             <log idref="prior"/>
@@ -199,13 +199,13 @@
             <log idref="ucldStdev.c:tree"/>
             <log id="rate.c:tree" spec="beast.base.evolution.RateStatistic" branchratemodel="@RelaxedClock.c:tree" tree="@Tree.t:tree"/>
         </logger>
-        <logger id="screenlog" spec="Logger" logEvery="5000">
+        <logger id="screenlog" spec="Logger" logEvery="$(printfreq)">
             <log idref="posterior"/>
             <log idref="likelihood"/>
             <log idref="prior"/>
         </logger>
-        <logger id="treelog.t:tree" spec="Logger" fileName="$(filebase)-$(tree).trees" logEvery="5000" mode="tree">
-            <log id="TreeWithMetaDataLogger.t:tree" spec="beast.base.evolution.TreeWithMetaDataLogger" branchratemodel="@RelaxedClock.c:tree" tree="@Tree.t:tree"/>
+        <logger id="treelog.t:tree" spec="Logger" fileName="$(filebase)-$(tree).trees" logEvery="$(samplefreq)" mode="tree">
+            <log id="TreeWithMetaDataLogger.t:tree" spec="beast.base.evolution.TreeWithMetaDataLogger" branchratemodel="@RelaxedClock.c:tree" tree="@Tree.t:tree" dp="6"/>
         </logger>
         <operatorschedule id="OperatorSchedule" spec="OperatorSchedule"/>
     </run>

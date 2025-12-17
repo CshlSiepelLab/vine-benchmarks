@@ -10,7 +10,7 @@ export LD_LIBRARY_PATH := /local/storage/no-backup/vine-benchmarks/lib:$(LD_LIBR
 
 # Edit for local structure; this is the only place absolute paths are used
 MAIN_DIR := /local/storage/no-backup/vine-benchmarks
-ROOT_SUFFIX := dna_sims/jc69_300sites_pilot_runs
+ROOT_SUFFIX := dna_sims/hky_300sites_pilot_runs
 
 ROOT := $(MAIN_DIR)/$(ROOT_SUFFIX)
 BIN := $(MAIN_DIR)/bin
@@ -40,7 +40,7 @@ tree.%.true.nwk:
 	$(BIN)/bdTree3 -b 1 -d 0.5 --oversample-k 3 --height 5 --min-edge 0.02 --expected-height $(EXPHEIGHT) --no-stem --ucln-sd 0.6 --target-stat median -n $(NTAXA) | sed 's/\[\&[UR]\] //' > $@
 
 tree.%.fa: tree.%.true.nwk
-	cp ../base-jc69.mod tmp.mod
+	cp ../base-hky.mod tmp.mod
 	echo -n "TREE: " >> tmp.mod
 	cat $< >> tmp.mod
 	$(PHAST_BIN)/base_evolve --nsites $(NSITES) tmp.mod > $@
@@ -75,7 +75,7 @@ tree.%.nex: tree.%.fa
 # MrBayes input file prep (convert fasta to nexus and add MrBayes block to the end of nexus to specify the model)
 tree.%.mrbayes.nex: tree.%.nex
 	$(BIN)/addMrbayesModelToNex --in_nexus tree.$*.nex --out_nexus tree.$*.mrbayes.nex \
-		--mcmc_length $(MRBAYES_MCMCLEN) --model JC69 --nruns 2 --sample_freq $(MRBAYES_SAMPLEFREQ) \
+		--mcmc_length $(MRBAYES_MCMCLEN) --model HKY --nruns 2 --sample_freq $(MRBAYES_SAMPLEFREQ) \
 		--print_freq $(PRINTFREQ) --diagn_freq $(PRINTFREQ) --use_beagle
 
 # Run MrBayes with two chains to check convergence later
@@ -117,7 +117,3 @@ clean_mrbayes:
 
 clean_stats:
 	rm -rf *.mcmc_convergence_stats*
-
-# Pilot runs without mcmc thinning use a lot of storage space, so this target removes log files from mcmc methods to free up space
-release_storage:
-	rm tree.*.beast.*.trees tree.*.beast.*.log tree.*.mrbayes.*.p tree.*.mrbayes.*.t

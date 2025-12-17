@@ -32,6 +32,7 @@ MLMOD := $(patsubst %.true.nwk,%.ml.mod,$(TREES))
 NJMOD := $(patsubst %.true.nwk,%.nj.mod,$(TREES))
 NJ := $(patsubst %.true.nwk,%.nj.nwk,$(TREES))
 ML := $(patsubst %.true.nwk,%.ml.nwk,$(TREES))
+RAXML := $(patsubst %.true.nwk,%.raxml.term,$(TREES))
 VAR := $(patsubst %.true.nwk,%.var.nwk,$(TREES))
 EVALRF := $(patsubst tree.%.true.nwk,tree.%.rf,$(TREES))
 EVALMF := $(patsubst tree.%.true.nwk,tree.%.mf,$(TREES))
@@ -58,10 +59,11 @@ FAHELDOUT := $(patsubst %.true.nwk,%.heldout.fa,$(TREES))
 
 all: eval.all.lnl.txt eval.all.rf.txt eval.all.mf.txt eval.all.time.txt eval.all.dist.txt
 
+simulate: $(FA)
+max_lik: $(ML) $(RAXML)
 mcmc: $(BEASTLOG) $(MRBAYESLOG)
 
 tree.%.true.nwk: 
-#	bdTree.py -b 5 -d 5 -n $(NTAXA) | sed 's/\[\&[UR]\] //' > $@
 	$(BIN)/bdTree3 -b 1 -d 0.5 --oversample-k 3 --height 5 --min-edge 0.02 --expected-height $(EXPHEIGHT) --no-stem --ucln-sd 0.6 --target-stat median -n $(NTAXA) | sed 's/\[\&[UR]\] //' > $@
 
 tree.%.fa: tree.%.true.nwk

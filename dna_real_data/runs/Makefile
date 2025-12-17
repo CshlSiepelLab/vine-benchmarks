@@ -1,8 +1,29 @@
 export SHELL=/usr/bin/bash
 
 # Method settings
-BEAST_MCMCLEN := 4000000
-MRBAYES_MCMCLEN := 4000000
+# BEAST_MCMCLEN := 4000000
+# MRBAYES_MCMCLEN := 4000000
+
+tree.ds1.beast.%: BEAST_MCMCLEN := 1800000
+tree.ds2.beast.%: BEAST_MCMCLEN := 1800000
+tree.ds3.beast.%: BEAST_MCMCLEN := 1800000
+tree.ds4.beast.%: BEAST_MCMCLEN := 1733333
+tree.ds5.beast.%: BEAST_MCMCLEN := 1633333
+tree.ds6.beast.%: BEAST_MCMCLEN := 1800000
+tree.ds7.beast.%: BEAST_MCMCLEN := 1800000
+tree.ds8.beast.%: BEAST_MCMCLEN := 1733333
+
+tree.ds1.mrbayes.%: MRBAYES_MCMCLEN := 566667
+tree.ds2.mrbayes.%: MRBAYES_MCMCLEN := 666667
+tree.ds3.mrbayes.%: MRBAYES_MCMCLEN := 766667
+tree.ds4.mrbayes.%: MRBAYES_MCMCLEN := 733333
+tree.ds5.mrbayes.%: MRBAYES_MCMCLEN := 733333
+tree.ds6.mrbayes.%: MRBAYES_MCMCLEN := 800000
+tree.ds7.mrbayes.%: MRBAYES_MCMCLEN := 800000
+tree.ds8.mrbayes.%: MRBAYES_MCMCLEN := 933333
+
+NUM_MCMC_SAMPLES := 10000
+MCMC_PRINTFREQ := 1000
 VINE_NSAMP := 1000
 VAROPT?=-M 300 -b 10 -c 100 -D 7 --hky85 -s $(VINE_NSAMP) -v 0
 
@@ -14,35 +35,40 @@ VAROPT?=-M 300 -b 10 -c 100 -D 7 --hky85 -s $(VINE_NSAMP) -v 0
 
 # edit for local structure; this is the only place absolute paths are used
 MAIN_DIR := /local/storage/no-backup/vine-benchmarks
-ROOT_SUFFIX := dna2
 
-ROOT := $(MAIN_DIR)/$(ROOT_SUFFIX)
+PYTHON_SRC := $(MAIN_DIR)/python/src
 BIN := $(MAIN_DIR)/bin
 VINE_BIN := $(BIN)/vine/bin
 PHAST_BIN := $(BIN)/phast/bin
 BEAST := $(BIN)/beast/bin/beast
 MRBAYES := $(BIN)/mb
-BEAST_TEMPLATE := $(ROOT)/beast_template.xml
+BEAST_TEMPLATE := $(MAIN_DIR)/dna_sims/hky_300sites/beast_template.xml
 CONTAINERS := $(MAIN_DIR)/containers
 DODONAPHY_SIF := $(CONTAINERS)/dodonaphy/dodonaphy.sif
 GEOPHY_SIF := $(CONTAINERS)/geophy/geophy.sif
 GEOPHY_CONFIG := $(CONTAINERS)/geophy/default.yaml
-VAIPHY_SIF := $(CONTAINERS)/vbpi_gnn_env/vaiphy.sif
+# VAIPHY_SIF := $(CONTAINERS)/vbpi_gnn_env/vaiphy.sif
 
 # Use all real FASTA files in the directory with the real DS1-8 data
-FA_DIR := /local/storage/no-backup/vine-benchmarks/real_dna/data
+FA_DIR := /local/storage/no-backup/vine-benchmarks/dna_real_data/data
 FA := $(sort $(wildcard $(FA_DIR)/*.fa))
 
 # Strip paths and extensions for consistent base names
 BASENAMES := $(notdir $(basename $(FA)))
 
-LNL := $(addprefix tree.,$(addsuffix .lnl,$(BASENAMES)))
-TIME := $(addprefix tree.,$(addsuffix .time,$(BASENAMES)))
+NJ := $(addprefix tree.,$(addsuffix .nj.nwk,$(BASENAMES)))
+ML := $(addprefix tree.,$(addsuffix .ml.nwk,$(BASENAMES)))
+VAR := $(addprefix tree.,$(addsuffix .var.nwk,$(BASENAMES)))
 BEASTLOG := $(addprefix tree.,$(addsuffix .beast.log,$(BASENAMES)))
 MRBAYESLOG := $(addprefix tree.,$(addsuffix .mrbayes.nex.p,$(BASENAMES)))
 
+LNL := $(addprefix tree.,$(addsuffix .lnl,$(BASENAMES)))
+TIME := $(addprefix tree.,$(addsuffix .time,$(BASENAMES)))
 
-all: eval.all.lnl.txt eval.all.time.txt #eval.all.rf.txt eval.all.mf.txt  eval.all.dist.txt
+
+all: eval.all.lnl.txt eval.all.time.txt
+
+infer: $(NJ) $(ML) $(VAR) $(BEASTLOG) $(MRBAYESLOG)
 
 tree.%.nj.nwk: $(FA_DIR)/%.fa
 	$(VINE_BIN)/vine --nj-only $< > $@
@@ -61,114 +87,47 @@ tree.%.beast.xml:
 
 tree.%.beast.term tree.%.beast-tree.trees tree.%.beast.log: tree.%.beast.xml $(FA_DIR)/%.fa
 	rm -f tree.$*.beast-tree.trees tree.$*.beast.log
-	"$(BEAST)" -java -working -D fastapath=$(FA_DIR)/$*.fa -D mcmclength=$(BEAST_MCMCLEN) $< > tree.$*.beast.term
+	"$(BEAST)" -java -working -D fastapath=$(FA_DIR)/$*.fa -D mcmclength=$(BEAST_MCMCLEN) -D samplefreq=$$(( $(BEAST_MCMCLEN) / $(NUM_MCMC_SAMPLES) )) -D printfreq=$(MCMC_PRINTFREQ) $< > tree.$*.beast.term
 
 tree.%.beast.nwk: tree.%.beast-tree.trees
-	python3 "$(ROOT)/time2subs.py" $^ tmp.nex
+	python3 "$(PYTHON_SRC)/time2subs.py" $^ tmp.nex
 	$(BIN)/convertTrees -i nexus tmp.nex > $@
 	rm -f tmp.nex
-
-# Calculate ESS-based runtime scaling factor for when the chain converged
-beast_ess_runtime_scale_factor.txt: $(BEASTLOG)
-	$(BIN)/ess_for_dataset_replicates \
-		--logfiles "$$(echo $(BEASTLOG) | tr ' ' ',')"  \
-		--parameters "Tree.Length,Tree.height" \
-		--outputfile $@ \
-		--ess_threshold 625 \
-		--burnin 0.1
 
 tree.%.nex: $(FA_DIR)/%.fa
 	$(BIN)/fa2nex $< $@
 
 # MrBayes input file prep (convert fasta to nexus and add MrBayes block to the end of nexus to specify the model)
 tree.%.mrbayes.nex: tree.%.nex
-	python3 $(BIN)/addMrbayesModelToNex.py --in_nexus tree.$*.nex --out_nexus tree.$*.mrbayes.nex --mcmc_length $(MRBAYES_MCMCLEN)
+	$(BIN)/addMrbayesModelToNex --in_nexus tree.$*.nex --out_nexus tree.$*.mrbayes.nex --mcmc_length $(MRBAYES_MCMCLEN) --model HKY \
+		--sample_freq $$(( $(MRBAYES_MCMCLEN) / $(NUM_MCMC_SAMPLES) )) --print_freq $(MCMC_PRINTFREQ) --diagn_freq $(MCMC_PRINTFREQ)
 
 # Run MrBayes
 tree.%.mrbayes.term tree.%.mrbayes.nex.p tree.%.mrbayes.nex.t: tree.%.mrbayes.nex
 	$(MRBAYES) tree.$*.mrbayes.nex > tree.$*.mrbayes.term
 
-# Calculate ESS-based runtime scaling factor for when the chain converged
-mrbayes_ess_runtime_scale_factor.txt: $(MRBAYESLOG)
-	$(BIN)/ess_for_dataset_replicates \
-		--logfiles "$$(echo $(MRBAYESLOG) | tr ' ' ',')"  \
-		--parameters "TL" \
-		--outputfile $@ \
-		--ess_threshold 625 \
-		--burnin 0.1
-
-# Run raxml
-#tree.%.raxml.term: $(FA_DIR)/%.fa
-#	rm -f $@
-#	sed 's/> />/g' $< > tree.$*.raxml.fa
-#	$(BIN)/raxml-ng --msa tree.$*.raxml.fa --model HKY+F --prefix tree.$* --search1 --threads 1 > tree.$*.raxml.term
-#	rm -f tree.$*.raxml.fa
-
 # Get NJ tree in nexus format
 tree.%.nj.nex: tree.%.nj.nwk
 	$(BIN)/nwk2nex $< $@
 
-# # Run dodonaphy
-# tree.%.dodonaphy.term tree.%.dodonaphy.elbo.txt tree.%.dodonaphy-time: tree.%.nex tree.%.nj.nex
-# 	mkdir tree.$*.dodonaphy
-# 	cp $< tree.$*.dodonaphy/tree.$*.nex
-# 	singularity exec --bind $(CURDIR):/mnt $(DODONAPHY_SIF) \
-# 		env OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
-# 		/usr/bin/time -o /mnt/tree.$*.dodonaphy-time \
-# 		dodo \
-# 		--path_root /mnt/tree.$*.dodonaphy \
-# 		--path_dna /mnt/tree.$*.nex  \
-# 		--start /mnt/tree.$*.nj.nex \
-# 		--infer vi \
-# 		--model JC69 \
-# 		--embed up \
-# 		--temp 0.00001 \
-# 		--prior exponential \
-# 		--connect nj \
-# 		--boosts 3 \
-# 		--importance 3 \
-# 		--curv -100 \
-# 		--learn 0.1 \
-# 		--epochs 2000 \
-# 		--draws 1000 \
-		--overwrite > tree.$*.dodonaphy.term
-# 	rm -f tree.$*.dodonaphy/tree.$*.nex
-# 	find ./tree.$*.dodonaphy/ -type f -exec bash -c 'for file; do mv "$$file" ./tree.$*.dodonaphy.$$(basename "$$file"); done' _ {} +
-# 	rm -rf tree.$*.dodonaphy
-
-
-# # Run GeoPhy
-# tree.%.geophy.term tree.%.geophy-time tree.%.geophy.eval.latest.txt: tree.%.nex
-# 	cp $< tree.$*.geophy.nex
-# 	cp $(GEOPHY_CONFIG) tree.$*.geophy.config.yaml
-# 	/usr/bin/time -o tree.$*.geophy-time \
-# 		singularity exec \
+# tree.%.vaiphy.term: tree.%.nex
+# 	mkdir -p tree.$*
+# 	cp tree.$*.nex tree.$*/tree.$*.nex
+# 	/usr/bin/time -o tree.$*.vaiphy-time \
+# 	singularity exec \
 # 		--bind $(CURDIR):/mnt \
-# 		$(GEOPHY_SIF) \
-# 		bash /opt/app/scripts/run_geophy.sh \
-# 		  -i /mnt/tree.$*.geophy.nex \
-# 		  -o /mnt/tree.$*.geophy \
-# 		  -c /mnt/tree.$*.geophy.config.yaml > tree.$*.geophy.term
-# 	rm -f tree.$*.geophy.nex
-
-tree.%.vaiphy.term: tree.%.nex
-	mkdir -p tree.$*
-	cp tree.$*.nex tree.$*/tree.$*.nex
-	/usr/bin/time -o tree.$*.vaiphy-time \
-	singularity exec \
-		--bind $(CURDIR):/mnt \
-		--bind /local/storage/no-backup/vine-benchmarks/VaiPhy:/opt/vaiphy \
-		--pwd /mnt \
-		--env PYTHONWARNINGS=ignore \
-		$(VAIPHY_SIF) \
-		python -W ignore \
-			/opt/vaiphy/src/main.py \
-			--data_path /mnt/ \
-			--result_path /mnt/ \
-			--max_iter 200 \
-			--n_particles 128 \
-		--dataset tree.$* > tree.$*.vaiphy.log 2> tree.$*.vaiphy.err
-	echo done > $@
+# 		--bind /local/storage/no-backup/vine-benchmarks/VaiPhy:/opt/vaiphy \
+# 		--pwd /mnt \
+# 		--env PYTHONWARNINGS=ignore \
+# 		$(VAIPHY_SIF) \
+# 		python -W ignore \
+# 			/opt/vaiphy/src/main.py \
+# 			--data_path /mnt/ \
+# 			--result_path /mnt/ \
+# 			--max_iter 200 \
+# 			--n_particles 128 \
+# 		--dataset tree.$* > tree.$*.vaiphy.log 2> tree.$*.vaiphy.err
+# 	echo done > $@
 
 tree.%.nj.mod: tree.%.nj.nwk $(FA_DIR)/%.fa
 	cp base-hky.mod tmp.mod
@@ -196,23 +155,10 @@ tree.%.mrbayeslnl: tree.%.mrbayes.nex.p tree.%.mrbayes.term
 	echo -n "$< " > $@
 	grep -v '^\[' $< | grep -v '^Gen' | awk '{print $$2}' | sort -gr | head -1 | awk '{printf "%.6f\n", $$1}' >> $@
 
-#tree.%.raxmllnl: tree.%.raxml.term
-#	echo -n "$^ " > $@
-#	grep 'Final LogLikelihood:' $^ | awk '{printf "%.6f\n", $$3}' >> $@
-
-# tree.%.dodonaphylnl: tree.%.dodonaphy.elbo.txt
-# 	echo -n "$^ " > $@
-# 	awk 'NR==1 || $$1>max {max=$$1} END {printf "%.6f\n", max}' $^ >> $@
-
-# tree.%.geophylnl: tree.%.geophy.eval.latest.txt
-# 	echo -n "$^ " > $@
-# 	awk 'NR==2 {printf "%.6f\n", $$6}' $^ >> $@
-
-tree.%.lnl: tree.%.modlnl tree.%.varlnl tree.%.beastlnl tree.%.mrbayeslnl #tree.%.dodonaphylnl tree.%.geophylnl
+tree.%.lnl: tree.%.modlnl tree.%.varlnl tree.%.beastlnl tree.%.mrbayeslnl
 	cat $^ | awk '{printf "%s %f\n", $$1, $$2}' > $@
 
 eval.all.lnl.txt: $(LNL)
-#	echo -e "ds\tnj\tml\tvine\tbeast\traxml\tmrbayes\tdodonaphy\tgeophy" > tmp
 	echo -e "ds\tnj\tml\tvine\tbeast\tmrbayes" > tmp
 	for file in $^ ; do \
 		printf "%s\t" `echo $${file} | awk -F\. '{print $$2}'` >> tmp ;\
@@ -223,19 +169,13 @@ eval.all.lnl.txt: $(LNL)
 	rm tmp
 
 # extract timing info
-tree.%.time: tree.%.beast.term tree.%.var-time tree.%.mrbayes.term beast_ess_runtime_scale_factor.txt mrbayes_ess_runtime_scale_factor.txt
-	@beast_scale_factor=$$(cat beast_ess_runtime_scale_factor.txt); \
-	mrbayes_scale_factor=$$(cat mrbayes_ess_runtime_scale_factor.txt); \
+tree.%.time: tree.%.beast.term tree.%.var-time tree.%.mrbayes.term
 	echo -e "ds\tbeast\tvine\tmrbayes" > $@; \
 	beast_time=$$(grep '^Total calculation time' tree.$*.beast.term | awk '{print $$4}'); \
-	scaled_beast_time=$$(awk -v t="$$beast_time" -v s="$$beast_scale_factor" 'BEGIN{printf "%f", t*s}'); \
-	printf "$*\t%s\t" "$$scaled_beast_time" >> $@; \
+	printf "$*\t%s\t" "$$beast_time" >> $@; \
 	head -1 tree.$*.var-time | awk '{printf "%s\t", $$1}' | sed 's/user//' >> $@; \
 	mrbayes_time=$$(grep 'Analysis used' tree.$*.mrbayes.term | awk '{printf "%s\t", $$(3)}'); \
-	scaled_mrbayes_time=$$(awk -v t="$$mrbayes_time" -v s="$$mrbayes_scale_factor" 'BEGIN{printf "%f", t*s}'); \
-	printf "%s\t" "$$scaled_mrbayes_time" >> $@; \
-
-
+	printf "%s\t" "$$mrbayes_time" >> $@; \
 
 eval.all.time.txt: $(TIME)
 	awk 'FNR==1 && NR==1 {print; next} FNR==2 {print; for(i=2;i<=NF;i++) sum[i]+=$$i; n++} END {if(n>0){printf "-----------------------------------------\nall"; for(i=2;i<=NF;i++) printf "\t%.2f", sum[i]/n; printf "\n"}}' $(TIME) > $@
@@ -346,9 +286,10 @@ eval.all.time.txt: $(TIME)
 # tree.%.tr: tree.%.var.nwk.log
 # 	grep -v '^#' $^ > $@
 
-# clean:
-# 	rm -rf $(TREES) $(FA) $(MOD) $(ML) $(MLMOD) $(NJMOD) $(NJ) $(VAR) $(VARNEX) $(EVALURF) $(LNL) $(VARLOG) $(VARTIME) tree.*.mean*.nwk tree.*.lnl.diffs tree.*.varlnl tree.*.modlnl eval.all.*.txt tree.*.beast* *.mf.txt *.rf.txt *.dist.txt  tree.*.time tree.*.lnl tree.*.mf tree.*.rf $(FAHELDOUT) $(TRACER)
-# 	rm -rf tree.*.mrbayes* tree.*.nex
-# 	rm -rf tree.*.raxml*
-# 	rm -rf tree.*.dodonaphy*
-# 	rm -rf tree.*.geophy*
+clean:
+	rm tree.*.* eval.all.*
+
+archive_all:
+	archive_dir="archive.all_$$(date +%Y-%m-%d_%H:%M:%S)"; \
+	mkdir $$archive_dir; \
+	find . -maxdepth 1 ! -name . ! -name "Makefil*" ! -name "archive*" -exec mv -t "$$archive_dir" {} +

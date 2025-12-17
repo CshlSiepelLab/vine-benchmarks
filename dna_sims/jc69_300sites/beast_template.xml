@@ -113,7 +113,7 @@
             <log idref="prior"/>
         </logger>
         <logger id="treelog.t:tree" spec="Logger" fileName="$(filebase)-$(tree).trees" logEvery="$(samplefreq)" mode="tree">
-            <log id="TreeWithMetaDataLogger.t:tree" spec="beast.base.evolution.TreeWithMetaDataLogger" branchratemodel="@RelaxedClock.c:tree" tree="@Tree.t:tree"/>
+            <log id="TreeWithMetaDataLogger.t:tree" spec="beast.base.evolution.TreeWithMetaDataLogger" branchratemodel="@RelaxedClock.c:tree" tree="@Tree.t:tree" dp="6"/>
         </logger>
         <operatorschedule id="OperatorSchedule" spec="OperatorSchedule"/>
     </run>

@@ -55,6 +55,8 @@ FAHELDOUT := $(patsubst %.true.nwk,%.heldout.fa,$(TREES))
 
 all: eval.all.lnl.txt eval.all.rf.txt eval.all.mf.txt eval.all.time.txt eval.all.dist.txt
 
+infer: $(BEASTLOG) $(MRBAYESLOG) $(VAR)
+
 tree.%.true.nwk: 
 	$(BIN)/bdTree3 -b 1 -d 0.5 --oversample-k 3 --height 5 --min-edge 0.02 --expected-height $(EXPHEIGHT) --no-stem --ucln-sd 0.6 --target-stat median -n $(NTAXA) | sed 's/\[\&[UR]\] //' > $@
 
@@ -89,28 +91,30 @@ tree.%.beast.xml:
 
 tree.%.beast.term tree.%.beast-tree.trees tree.%.beast.log: tree.%.beast.xml tree.%.fa
 	rm -f tree.$*.beast-tree.trees tree.$*.beast.log
-	"$(BEAST)" -java -working -D fastapath=tree.$*.fa -D mcmclength=$(BEAST_MCMCLEN) $< > tree.$*.beast.term
+	"$(BEAST)" -java -working -D fastapath=tree.$*.fa -D mcmclength=$(BEAST_MCMCLEN) -D samplefreq=$(BEAST_MCMC_SAMPLEFREQ) -D printfreq=$(MCMC_PRINTFREQ) $< > tree.$*.beast.term
 
 tree.%.beast.nwk: tree.%.beast-tree.trees
 	python3 "$(PYTHON_SRC)/time2subs.py" $^ tmp.nex
 	$(BIN)/convertTrees -i nexus tmp.nex > $@
 	rm -f tmp.nex
 
-# Calculate ESS-based runtime scaling factor for when the chain converged
-beast_ess_runtime_scale_factor_updatedoperators.txt: $(BEASTLOG)
-	$(BIN)/ess_for_dataset_replicates \
-		--logfiles "$$(echo $(BEASTLOG) | tr ' ' ',')"  \
-		--parameters "Tree.Length,Tree.height" \
-		--outputfile $@ \
-		--ess_threshold 625 \
-		--burnin 0.1
+# Old method - now doing pilot runs to determine mcmc chain length ahead of time
+# # Calculate ESS-based runtime scaling factor for when the chain converged
+# beast_ess_runtime_scale_factor_updatedoperators.txt: $(BEASTLOG)
+# 	$(BIN)/ess_for_dataset_replicates \
+# 		--logfiles "$$(echo $(BEASTLOG) | tr ' ' ',')"  \
+# 		--parameters "Tree.Length,Tree.height" \
+# 		--outputfile $@ \
+# 		--ess_threshold 625 \
+# 		--burnin 0.1
 
 tree.%.nex: tree.%.fa
 	$(BIN)/fa2nex $< $@
 
 # MrBayes input file prep (convert fasta to nexus and add MrBayes block to the end of nexus to specify the model)
 tree.%.mrbayes.nex: tree.%.nex
-	$(BIN)/addMrbayesModelToNex --in_nexus tree.$*.nex --out_nexus tree.$*.mrbayes.nex --sample_freq 1000 --nchains 1 --mcmc_length $(MRBAYES_MCMCLEN)
+	$(BIN)/addMrbayesModelToNex --in_nexus tree.$*.nex --out_nexus tree.$*.mrbayes.nex --mcmc_length $(MRBAYES_MCMCLEN) --model HKY \
+		--sample_freq $(MRBAYES_MCMC_SAMPLEFREQ) --print_freq $(MCMC_PRINTFREQ) --diagn_freq $(MCMC_PRINTFREQ)
 
 # Run MrBayes
 tree.%.mrbayes.term tree.%.mrbayes.nex.p tree.%.mrbayes.nex.t: tree.%.mrbayes.nex
@@ -121,14 +125,15 @@ tree.%.mrbayes.nwk: tree.%.mrbayes.nex.t
 	$(BIN)/convertTrees -i nexus $< \
 		| sed 's/^\[&[^]]*\]\s*//' > $@
 
-# Calculate ESS-based runtime scaling factor for when the chain converged
-mrbayes_ess_runtime_scale_factor.txt: $(MRBAYESLOG)
-	$(BIN)/ess_for_dataset_replicates \
-		--logfiles "$$(echo $(MRBAYESLOG) | tr ' ' ',')"  \
-		--parameters "TL" \
-		--outputfile $@ \
-		--ess_threshold 625 \
-		--burnin 0.1
+# # Old method - now doing pilot runs to determine mcmc chain length ahead of time
+# # Calculate ESS-based runtime scaling factor for when the chain converged
+# mrbayes_ess_runtime_scale_factor.txt: $(MRBAYESLOG)
+# 	$(BIN)/ess_for_dataset_replicates \
+# 		--logfiles "$$(echo $(MRBAYESLOG) | tr ' ' ',')"  \
+# 		--parameters "TL" \
+# 		--outputfile $@ \
+# 		--ess_threshold 625 \
+# 		--burnin 0.1
 
 # Run raxml
 tree.%.raxml.term: tree.%.fa
@@ -244,22 +249,30 @@ eval.all.lnl.txt: $(LNL)
 	awk '{x1 += $$1; x2 += $$2; x3 += $$3; x4 += $$4; x5 += $$5; x6 += $$6; x7 += $$7; x8 += $$8; x9 += $$9; print $$0} END {printf ("-----\n%f\t%f\t%f\t%f\t%f\t%f\t%f\n", x1/(NR-1), x2/(NR-1), x3/(NR-1), x4/(NR-1), x5/(NR-1), x6/(NR-1), x7/(NR-1)) }' tmp > $@
 	rm tmp
 
-# extract timing info
+## extract timing info
 #tree.%.time: tree.%.beast.term tree.%.var-time tree.%.mrbayes.term tree.%.raxml.term tree.%.dodonaphy-time tree.%.geophy-time
-tree.%.time: tree.%.beast.term tree.%.var-time tree.%.mrbayes.term tree.%.raxml.term  beast_ess_runtime_scale_factor.txt mrbayes_ess_runtime_scale_factor.txt
-	@beast_scale_factor=$$(cat beast_ess_runtime_scale_factor.txt); \
-	mrbayes_scale_factor=$$(cat mrbayes_ess_runtime_scale_factor.txt); \
+tree.%.time: tree.%.beast.term tree.%.var-time tree.%.mrbayes.term tree.%.raxml.term # beast_ess_runtime_scale_factor.txt mrbayes_ess_runtime_scale_factor.txt
 	echo -e "samp\tbeast\tmrbayes\tvine\traxml" > $@; \
 	beast_time=$$(grep '^Total calculation time' tree.$*.beast.term | awk '{print $$4}'); \
-	scaled_beast_time=$$(awk -v t="$$beast_time" -v s="$$beast_scale_factor" 'BEGIN{printf "%f", t*s}'); \
-	printf "$*\t%s\t" "$$scaled_beast_time" >> $@; \
+	printf "$*\t%s\t" "$$beast_time" >> $@; \
 	mrbayes_time=$$(grep 'Analysis used' tree.$*.mrbayes.term | awk '{printf "%s\t", $$(3)}'); \
-	scaled_mrbayes_time=$$(awk -v t="$$mrbayes_time" -v s="$$mrbayes_scale_factor" 'BEGIN{printf "%f", t*s}'); \
-	printf "%s\t" "$$scaled_mrbayes_time" >> $@; \
+	printf "%s\t" "$$mrbayes_time" >> $@; \
 	head -1 tree.$*.var-time | awk '{printf "%s\t", $$1}' | sed 's/user//' >> $@; \
 	grep 'Elapsed time:' tree.$*.raxml.term | awk '{printf "%s\n", $$3}' >> $@
 #	head -1 tree.$*.dodonaphy-time | awk '{printf "%s\t", $$1}' | sed 's/user//' >> $@
 #	head -1 tree.$*.geophy-time | awk '{printf "%s\n", $$1}' | sed 's/user//' >> $@
+
+# Old method - now doing pilot runs to determine mcmc chain length ahead of time
+# @beast_scale_factor=$$(cat beast_ess_runtime_scale_factor.txt); \
+# mrbayes_scale_factor=$$(cat mrbayes_ess_runtime_scale_factor.txt); \
+# echo -e "samp\tbeast\tmrbayes\tvine\traxml" > $@; \
+# beast_time=$$(grep '^Total calculation time' tree.$*.beast.term | awk '{print $$4}'); \
+# scaled_beast_time=$$(awk -v t="$$beast_time" -v s="$$beast_scale_factor" 'BEGIN{printf "%f", t*s}'); \
+# printf "$*\t%s\t" "$$scaled_beast_time" >> $@; \
+# mrbayes_time=$$(grep 'Analysis used' tree.$*.mrbayes.term | awk '{printf "%s\t", $$(3)}'); \
+# scaled_mrbayes_time=$$(awk -v t="$$mrbayes_time" -v s="$$mrbayes_scale_factor" 'BEGIN{printf "%f", t*s}'); \
+# printf "%s\t" "$$scaled_mrbayes_time" >> $@; \
+
 
 eval.all.time.txt: $(TIME)
 	awk 'FNR==1 && NR==1 {print; next} FNR==2 {print; for(i=2;i<=NF;i++) sum[i]+=$$i; n++} END {if(n>0){printf "-----------------------------------------\nall"; for(i=2;i<=NF;i++) printf "\t%.2f", sum[i]/n; printf "\n"}}' $(TIME) > $@
@@ -390,3 +403,24 @@ clean:
 	rm -rf tree.*.raxml*
 	rm -rf tree.*.dodonaphy*
 	rm -rf tree.*.geophy*
+
+clean_mcmc:
+	rm -rf tree.*.beast* tree.*.mrbayes* beast_ess* mrbayes_ess* eval.all.*
+
+clean_vine:
+	rm -rf tree.*.var* eval.all.*.txt tree.*.mf tree.*.rf tree.*.dist tree.*.lnl
+
+# Some useful rules for archiving results more efficiently
+archive_mcmc:
+	archive_dir="archive.beast_mrbayes_$$(date +%Y-%m-%d_%H:%M:%S)"; \
+	mkdir $$archive_dir; \
+	mv tree.*.beast* $$archive_dir/; \
+	mv tree.*.mrbayes* $$archive_dir/; \
+	mv eval.all.*.txt $$archive_dir/; \
+	mv tree.*.lnl $$archive_dir/; \
+	mv tree.*.time $$archive_dir/; \
+	mv tree.*.rf $$archive_dir/; \
+	mv tree.*.mf $$archive_dir/; \
+	mv tree.*.dist $$archive_dir/; \
+	mv beast_ess_runtime_scale_factor* $$archive_dir/; \
+	mv mrbayes_ess_runtime_scale_factor* $$archive_dir/

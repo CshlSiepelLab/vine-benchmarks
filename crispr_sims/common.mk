@@ -16,6 +16,7 @@ VINE_BIN := $(BIN)/vine/bin
 
 TREES := $(shell seq -f tree.%.0f.true.nwk 1 $(NSAMP))
 LNLS := $(patsubst tree.%.true.nwk,tree.%.lnl,$(TREES))
+TIMES := $(patsubst tree.%.true.nwk,tree.%.time,$(TREES))
 EVALRF := $(patsubst tree.%.true.nwk,tree.%.rf,$(TREES))
 
 all: summary.time.txt summary.lnl.txt
@@ -47,7 +48,7 @@ tree.%.laml_trees.nwk: tree.%.indels.csv tree.%.cass.nwk
 	run_laml -c tree.$*.indels.csv -t tree.$*.cass.nwk -o tree.$*.laml --topology_search --noDropout
 
 # Run vine
-tree.%.var.nwk tree.%.var.log tree.%.var-time: tree.%.indels.tsv tree.%.cass.nwk 
+tree.%.var.nwk tree.%.var.log tree.%.var-time: tree.%.indels.tsv tree.%.cass.nwk
 	/usr/bin/time -o tree.$*.var-time $(VINE_BIN)/vine \
 		$(VAROPT) \
 		-i CRISPR tree.$*.indels.tsv \
@@ -61,7 +62,7 @@ tree.%.lnl: tree.%.laml_trees.nwk tree.%.var.log
 	tail -1 tree.$*.var.log | awk '{printf "%f\n", $$11}' >> $@
 
 # Extract times for all methods per tree
-tree.%.time: tree.%.laml_trees.nwk tree.%.var-time
+tree.%.time: tree.%.laml_trees.nwk tree.%.var-time tree.%.var.nwk
 	grep '^Runtime' tree.$*.laml.log | tail -1 | awk '{printf "%d\t%f\t", $*, $$3}' > $@
 	head -1 tree.$*.var-time | awk '{printf "%s\n", $$1}' | sed 's/user//' >> $@
 
