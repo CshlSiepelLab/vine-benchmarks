@@ -35,6 +35,7 @@ quinn.*
 tree.*
 test*
 graphs*
+eval.all*
 
 # Ignore backup files from text editors
 *~

@@ -9,26 +9,40 @@ export SHELL=/usr/bin/bash
 MAIN_DIR := /local/storage/no-backup/vine-benchmarks
 
 # Relative paths
-PYTHON_SRC := $(MAIN_DIR)/python/src
 BIN := $(MAIN_DIR)/bin
 PHAST_BIN := $(BIN)/phast/bin
 VINE_BIN := $(BIN)/vine/bin
+CONTAINERS := $(MAIN_DIR)/containers
+CASSIOPEIA_SIF := $(CONTAINERS)/cassiopeia/cassiopeia.sif
+LAML_SIF := $(CONTAINERS)/laml/laml.sif
 
 TREES := $(shell seq -f tree.%.0f.true.nwk 1 $(NSAMP))
+INDELS := $(patsubst tree.%.true.nwk,tree.%.indels.csv,$(TREES))
 LNLS := $(patsubst tree.%.true.nwk,tree.%.lnl,$(TREES))
 TIMES := $(patsubst tree.%.true.nwk,tree.%.time,$(TREES))
 EVALRF := $(patsubst tree.%.true.nwk,tree.%.rf,$(TREES))
+LAML_TREES := $(patsubst tree.%.true.nwk,tree.%.laml_trees.nwk,$(TREES))
 
 all: summary.time.txt summary.lnl.txt
 
-tree.%.true.nwk: 
-	python $(PYTHON_SRC)/simulateCellTree.py --out_tree $@ --num_tips $(NTAXA) --birth_rate 0.075 --death_rate 0.005 --desired_time 54
+simulate: $(TREES) $(INDELS)
+laml: $(LAML_TREES)
+
+tree.%.true.nwk:
+	singularity exec --bind $(MAIN_DIR):/mnt $(CASSIOPEIA_SIF) \
+	python /mnt/python/src/simulateCellTree.py \
+		--out_tree /mnt/crispr_sims/$(NTAXA)taxa/tree.$*.true.nwk \
+		--num_tips $(NTAXA) \
+		--birth_rate 0.075 \
+		--death_rate 0.005 \
+		--desired_time 54
 
 # Run crispr barcode simulation to get the mutation overlay for the tree
 tree.%.indels.csv: tree.%.true.nwk
-	python $(PYTHON_SRC)/simulateCrisprBarcodes.py \
-		--in_tree $< \
-		--out_matrix $@ \
+	singularity exec --bind $(MAIN_DIR):/mnt $(CASSIOPEIA_SIF) \
+	python /mnt/python/src/simulateCrisprBarcodes.py \
+		--in_tree /mnt/crispr_sims/$(NTAXA)taxa/tree.$*.true.nwk \
+		--out_matrix /mnt/crispr_sims/$(NTAXA)taxa/tree.$*.indels.csv \
 		--num_cassettes $(NCASETTES) \
 		--cassette_size $(CASETTESIZE) \
 		--mut_rate 0.01 \
@@ -41,11 +55,13 @@ tree.%.indels.tsv: tree.%.indels.csv
 
 # Run cassiopeia-greedy to get the starting tree for laml and vine
 tree.%.cass.nwk: tree.%.indels.csv
-	python $(PYTHON_SRC)/cassiopeiaGreedy.py tree.$*.indels.csv $@
+	singularity exec --bind $(MAIN_DIR):/mnt $(CASSIOPEIA_SIF) \
+	python /mnt/python/src/cassiopeiaGreedy.py /mnt/crispr_sims/$(NTAXA)taxa/tree.$*.indels.csv $@
 
 # Run laml
 tree.%.laml_trees.nwk: tree.%.indels.csv tree.%.cass.nwk
-	run_laml -c tree.$*.indels.csv -t tree.$*.cass.nwk -o tree.$*.laml --topology_search --noDropout
+	singularity exec --bind $(CURDIR):/mnt $(LAML_SIF) \
+	run_laml -c /mnt/tree.$*.indels.csv -t /mnt/tree.$*.cass.nwk -o /mnt/tree.$*.laml --topology_search --noDropout --noultrametric
 
 # Run vine
 tree.%.var.nwk tree.%.var.log tree.%.var-time: tree.%.indels.tsv tree.%.cass.nwk
@@ -100,5 +116,7 @@ eval.all.rf.txt: $(EVALRF)
 	rm -f tmp
 
 clean:
-	rm -rf tree.*.true.nwk tree.*.laml* tree.*.var* tree.*.indels.* tree.*.cass.nwk tree.*.lnl tree.*.time tree.*.mean.nwk
-	rm -rf summary.lnl.txt summary.time.txt
+	rm -rf tree.*.* summary.*.txt eval.all.*.txt
+
+clean_laml:
+	rm -rf tree.*.laml* eval.all.*.txt summary.*.txt tree.*.lnl tree.*.time tree.*.rf

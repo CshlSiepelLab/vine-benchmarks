@@ -249,6 +249,13 @@ eval.all.lnl.txt: $(LNL)
 	awk '{x1 += $$1; x2 += $$2; x3 += $$3; x4 += $$4; x5 += $$5; x6 += $$6; x7 += $$7; x8 += $$8; x9 += $$9; print $$0} END {printf ("-----\n%f\t%f\t%f\t%f\t%f\t%f\t%f\n", x1/(NR-1), x2/(NR-1), x3/(NR-1), x4/(NR-1), x5/(NR-1), x6/(NR-1), x7/(NR-1)) }' tmp > $@
 	rm tmp
 
+# Create a version where each row's values are offset by its true value
+updated.all.lnl.txt: eval.all.lnl.txt
+	awk 'NR==1{print; next} \
+		$$1=="-----"{print; next} \
+		{t=$$1; for(i=1;i<=NF;i++) $$i=$$i-t; print}' $< > $@
+
+
 ## extract timing info
 #tree.%.time: tree.%.beast.term tree.%.var-time tree.%.mrbayes.term tree.%.raxml.term tree.%.dodonaphy-time tree.%.geophy-time
 tree.%.time: tree.%.beast.term tree.%.var-time tree.%.mrbayes.term tree.%.raxml.term # beast_ess_runtime_scale_factor.txt mrbayes_ess_runtime_scale_factor.txt

@@ -110,6 +110,13 @@ tree.%.mrbayes.term tree.%.mrbayes.nex.p tree.%.mrbayes.nex.t: tree.%.mrbayes.ne
 tree.%.nj.nex: tree.%.nj.nwk
 	$(BIN)/nwk2nex $< $@
 
+# Run raxml
+tree.%.raxml.term: $(FA_DIR)/%.fa
+	rm -f $@
+	sed 's/> />/g' $< > tree.$*.raxml.fa
+	$(BIN)/raxml-ng --msa tree.$*.raxml.fa --model HKY+F --prefix tree.$* --search1 --threads 1 > tree.$*.raxml.term
+	rm -f tree.$*.raxml.fa
+
 # tree.%.vaiphy.term: tree.%.nex
 # 	mkdir -p tree.$*
 # 	cp tree.$*.nex tree.$*/tree.$*.nex
@@ -155,27 +162,32 @@ tree.%.mrbayeslnl: tree.%.mrbayes.nex.p tree.%.mrbayes.term
 	echo -n "$< " > $@
 	grep -v '^\[' $< | grep -v '^Gen' | awk '{print $$2}' | sort -gr | head -1 | awk '{printf "%.6f\n", $$1}' >> $@
 
-tree.%.lnl: tree.%.modlnl tree.%.varlnl tree.%.beastlnl tree.%.mrbayeslnl
-	cat $^ | awk '{printf "%s %f\n", $$1, $$2}' > $@
+tree.%.raxmllnl: tree.%.raxml.term
+	echo -n "$^ " > $@
+	grep 'Final LogLikelihood:' $^ | awk '{printf "%.6f\n", $$3}' >> $@
+
+tree.%.lnl: tree.%.modlnl tree.%.varlnl tree.%.beastlnl tree.%.mrbayeslnl tree.%.raxmllnl 
+	cat $^ | awk '{if (true == 0) true = $$2; printf "%s %f\n", $$0, $$2 - true}' > $@
 
 eval.all.lnl.txt: $(LNL)
-	echo -e "ds\tnj\tml\tvine\tbeast\tmrbayes" > tmp
+	echo -e "ds\tnj\tml\tvine\tbeast\tmrbayes\traxml" > tmp
 	for file in $^ ; do \
 		printf "%s\t" `echo $${file} | awk -F\. '{print $$2}'` >> tmp ;\
 		awk '{printf "%s\t", $$2}' $${file} >> tmp ;\
 		echo >> tmp ;\
 	done
-	awk '{x1 += $$2; x2 += $$3; x3 += $$4; x4 += $$5; x5 += $$6; print $$0} END {printf ("-----\nave\t%f\t%f\t%f\t%f\t%f\n", x1/(NR-1), x2/(NR-1), x3/(NR-1), x4/(NR-1), x5/(NR-1))}' tmp > $@
+	awk '{x1 += $$2; x2 += $$3; x3 += $$4; x4 += $$5; x5 += $$6; x6 += $$7; print $$0} END {printf ("-----\nave\t%f\t%f\t%f\t%f\t%f\t%f\n", x1/(NR-1), x2/(NR-1), x3/(NR-1), x4/(NR-1), x5/(NR-1), x6/(NR-1))}' tmp > $@
 	rm tmp
 
 # extract timing info
-tree.%.time: tree.%.beast.term tree.%.var-time tree.%.mrbayes.term
-	echo -e "ds\tbeast\tvine\tmrbayes" > $@; \
+tree.%.time: tree.%.beast.term tree.%.var-time tree.%.mrbayes.term tree.%.raxml.term
+	echo -e "ds\tbeast\tvine\tmrbayes\traxml" > $@; \
 	beast_time=$$(grep '^Total calculation time' tree.$*.beast.term | awk '{print $$4}'); \
 	printf "$*\t%s\t" "$$beast_time" >> $@; \
 	head -1 tree.$*.var-time | awk '{printf "%s\t", $$1}' | sed 's/user//' >> $@; \
 	mrbayes_time=$$(grep 'Analysis used' tree.$*.mrbayes.term | awk '{printf "%s\t", $$(3)}'); \
 	printf "%s\t" "$$mrbayes_time" >> $@; \
+	grep 'Elapsed time:' tree.$*.raxml.term | awk '{printf "%s\n", $$3}' >> $@
 
 eval.all.time.txt: $(TIME)
 	awk 'FNR==1 && NR==1 {print; next} FNR==2 {print; for(i=2;i<=NF;i++) sum[i]+=$$i; n++} END {if(n>0){printf "-----------------------------------------\nall"; for(i=2;i<=NF;i++) printf "\t%.2f", sum[i]/n; printf "\n"}}' $(TIME) > $@
@@ -292,4 +304,4 @@ clean:
 archive_all:
 	archive_dir="archive.all_$$(date +%Y-%m-%d_%H:%M:%S)"; \
 	mkdir $$archive_dir; \
-	find . -maxdepth 1 ! -name . ! -name "Makefil*" ! -name "archive*" -exec mv -t "$$archive_dir" {} +
+	find . -maxdepth 1 ! -name . ! -name "Makefil*" ! -name "archive*" !-name "base-hky.mod" -exec mv -t "$$archive_dir" {} +
