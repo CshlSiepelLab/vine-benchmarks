@@ -15,6 +15,8 @@ PYTHON_SRC := $(MAIN_DIR)/python/src
 BIN := $(MAIN_DIR)/bin
 PHAST_BIN := $(BIN)/phast/bin
 VINE_BIN := $(BIN)/vine/bin
+CONTAINERS := $(MAIN_DIR)/containers
+LAML_SIF := $(CONTAINERS)/laml/laml.sif
 
 # define these manually because we want to exclude the really large ones.  Take CPs >= 30
 QUINNCPS := 30 31 32 34 35 36 37 40 42 43 44 45 46 47 48 49 51 52 54 55 56 57 58 59 60 61 62 63 64 66 67 68 70 71 72 73 74 76 77 78 79 80 82 83 84 85 86 89 90 91 92 94 95 96 97 98 99 100
@@ -46,7 +48,8 @@ source-data: $(MATRICES) $(CASSTREES)
 
 # Added --noultrametric to the LAML v1.0.5 run since it gives ultrametric trees. Seems like a big they will need to fix.
 quinn.%.laml_trees.nwk: quinn.%.csv quinn.%.cass.nwk
-	run_laml -c quinn.$*.csv -t quinn.$*.cass.nwk -o quinn.$*.laml --topology_search --noDropout --noultrametric
+	singularity exec --bind $(CURDIR):/mnt $(LAML_SIF) \
+	run_laml -c /mnt/quinn.$*.csv -t /mnt/quinn.$*.cass.nwk -o /mnt/quinn.$*.laml --topology_search --noDropout --noultrametric
 
 laml: $(LAMLTREES)
 
