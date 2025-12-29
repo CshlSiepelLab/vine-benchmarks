@@ -25,7 +25,7 @@ tree.ds8.mrbayes.%: MRBAYES_MCMCLEN := 933333
 NUM_MCMC_SAMPLES := 10000
 MCMC_PRINTFREQ := 1000
 VINE_NSAMP := 1000
-VAROPT?=-M 300 -b 10 -c 100 -D 7 --hky85 -s $(VINE_NSAMP) -v 0
+VAROPT?=-M 300 -b 10 -c 100 -D 7 --hky85 -s $(VINE_NSAMP) -v 0 --taylor 
 
 
 # Prevent Make from removing files it thinks it should clean up

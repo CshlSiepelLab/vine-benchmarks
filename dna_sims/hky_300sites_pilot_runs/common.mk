@@ -76,7 +76,8 @@ tree.%.nex: tree.%.fa
 tree.%.mrbayes.nex: tree.%.nex
 	$(BIN)/addMrbayesModelToNex --in_nexus tree.$*.nex --out_nexus tree.$*.mrbayes.nex \
 		--mcmc_length $(MRBAYES_MCMCLEN) --model HKY --nruns 2 --sample_freq $(MRBAYES_SAMPLEFREQ) \
-		--print_freq $(PRINTFREQ) --diagn_freq $(PRINTFREQ) --use_beagle
+		--print_freq $(PRINTFREQ) --diagn_freq $(PRINTFREQ) --use_beagle \
+		--nchains 4 # Activating MC3 here to 250 taxa+ to prevent mrbayes from getting stuck
 
 # Run MrBayes with two chains to check convergence later
 tree.%.mrbayes.term tree.%.mrbayes.nex.run1.p tree.%.mrbayes.nex.run1.t tree.%.mrbayes.nex.run2.p tree.%.mrbayes.nex.run2.t: tree.%.mrbayes.nex

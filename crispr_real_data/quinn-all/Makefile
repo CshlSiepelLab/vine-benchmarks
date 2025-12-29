@@ -18,9 +18,15 @@ VINE_BIN := $(BIN)/vine/bin
 CONTAINERS := $(MAIN_DIR)/containers
 LAML_SIF := $(CONTAINERS)/laml/laml.sif
 
-# define these manually because we want to exclude the really large ones.  Take CPs >= 30
+# Copy of below new cutoff CPs just for testing since some in the full set fail with VINE for now due to a bug
+#QUINNCPS := 7 10 14 15 17 19 20 21 22 23 24 26 27 28 29 30 31 32 34 35 36 37 40 42 43 44 45 46 47 48 49 51 52 54 55 56 57 58 59 60 61 62 63 64 66 67 68 70 71 72 73 74 76 77 78 79 80 82 83 84 85 86 89 90 91 92 94 95 96 97 98 99 100
+
+# New cutoff for CPs with around ~650 tips or less.
+# QUINNCPS := 6 7 8 9 10 11 12 13 14 15 17 19 20 21 22 23 24 26 27 28 29 30 31 32 34 35 36 37 40 42 43 44 45 46 47 48 49 51 52 54 55 56 57 58 59 60 61 62 63 64 66 67 68 70 71 72 73 74 76 77 78 79 80 82 83 84 85 86 89 90 91 92 94 95 96 97 98 99 100
+
+# Old cutoff for only CPs with number >= 30
 QUINNCPS := 30 31 32 34 35 36 37 40 42 43 44 45 46 47 48 49 51 52 54 55 56 57 58 59 60 61 62 63 64 66 67 68 70 71 72 73 74 76 77 78 79 80 82 83 84 85 86 89 90 91 92 94 95 96 97 98 99 100
-#QUINNCPS := 60 61 62 63 64 66 67 68 70 71 72 73 74 76 77 78 79 80 82 83 84 85 86 89 90 91 92 94 95 96 97 98 99 100
+
 
 MATRICES := $(QUINNCPS:%=quinn.%.tsv)
 MATRICES_CSV := $(QUINNCPS:%=quinn.%.csv)
@@ -30,9 +36,13 @@ VARLOG := $(QUINNCPS:%=quinn.%.var.log)
 TIMES := $(QUINNCPS:%=quinn.%.time)
 LNLS := $(QUINNCPS:%=quinn.%.lnl)
 
-VAROPT?=-M 400 -b 10 -c 100 -D 6 -v 0
+VAROPT?=-M 400 -b 10 -c 100 -D 6 -v 0 --taylor
 
 all: $(VARLOG) $(LAMLTREES) $(TIMES) $(LNLS) summary.lnl.txt summary.time.txt
+
+laml: $(LAMLTREES)
+vine: $(VARLOG)
+infer: $(VARLOG) $(LAMLTREES)
 
 # these targets just copy source data and reformat
 quinn.%.csv:
@@ -54,7 +64,8 @@ quinn.%.laml_trees.nwk: quinn.%.csv quinn.%.cass.nwk
 laml: $(LAMLTREES)
 
 quinn.%.var.log quinn.%.var-time: quinn.%.tsv quinn.%.cass.nwk
-	/usr/bin/time -o quinn.$*.var-time $(VINE_BIN)/vine $(VAROPT) -i CRISPR quinn.$*.tsv --log quinn.$*.var.log --tree quinn.$*.cass.nwk --mean quinn.$*.mean.nwk > $@
+	/usr/bin/time -o quinn.$*.var-time $(VINE_BIN)/vine $(VAROPT) -i CRISPR quinn.$*.tsv --log quinn.$*.var.log --mean quinn.$*.mean.nwk > $@
+#	/usr/bin/time -o quinn.$*.var-time $(VINE_BIN)/vine $(VAROPT) -i CRISPR quinn.$*.tsv --log quinn.$*.var.log --tree quinn.$*.cass.nwk --mean quinn.$*.mean.nwk > $@
 
 quinn.%.lnl: quinn.%.laml_trees.nwk quinn.%.var.log
 	grep '^Negative' quinn.$*.laml_params.txt | awk '{printf "%d\t-%f\t", $*, $$2}' > $@

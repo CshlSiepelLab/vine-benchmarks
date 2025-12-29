@@ -22,11 +22,13 @@ LNLS := $(patsubst tree.%.true.nwk,tree.%.lnl,$(TREES))
 TIMES := $(patsubst tree.%.true.nwk,tree.%.time,$(TREES))
 EVALRF := $(patsubst tree.%.true.nwk,tree.%.rf,$(TREES))
 LAML_TREES := $(patsubst tree.%.true.nwk,tree.%.laml_trees.nwk,$(TREES))
+VINE_TREES := $(patsubst tree.%.true.nwk,tree.%.var.nwk,$(TREES))
 
 all: summary.time.txt summary.lnl.txt
 
 simulate: $(TREES) $(INDELS)
 laml: $(LAML_TREES)
+vine: $(VINE_TREES)
 
 tree.%.true.nwk:
 	singularity exec --bind $(MAIN_DIR):/mnt $(CASSIOPEIA_SIF) \
@@ -56,7 +58,7 @@ tree.%.indels.tsv: tree.%.indels.csv
 # Run cassiopeia-greedy to get the starting tree for laml and vine
 tree.%.cass.nwk: tree.%.indels.csv
 	singularity exec --bind $(MAIN_DIR):/mnt $(CASSIOPEIA_SIF) \
-	python /mnt/python/src/cassiopeiaGreedy.py /mnt/crispr_sims/$(NTAXA)taxa/tree.$*.indels.csv $@
+	python /mnt/python/src/cassiopeiaGreedy.py /mnt/crispr_sims/$(NTAXA)taxa/tree.$*.indels.csv /mnt/crispr_sims/$(NTAXA)taxa/tree.$*.cass.nwk
 
 # Run laml
 tree.%.laml_trees.nwk: tree.%.indels.csv tree.%.cass.nwk
@@ -69,8 +71,10 @@ tree.%.var.nwk tree.%.var.log tree.%.var-time: tree.%.indels.tsv tree.%.cass.nwk
 		$(VAROPT) \
 		-i CRISPR tree.$*.indels.tsv \
 		--log tree.$*.var.log \
-		--tree tree.$*.cass.nwk \
 		--mean tree.$*.mean.nwk > tree.$*.var.nwk
+
+# removing this for now
+#		--tree tree.$*.cass.nwk \
 
 # Extract lnls for all methods per tree
 tree.%.lnl: tree.%.laml_trees.nwk tree.%.var.log
@@ -97,7 +101,9 @@ tree.%.true.rf.txt: tree.%.true.nwk tree.%.true.nwk
 	$(PHAST_BIN)/evalTrees tree.$*.true.nwk -t tree.$*.true.nwk > $@
 
 tree.%.laml.rf.txt: tree.%.laml_trees.nwk tree.%.true.nwk
-	$(PHAST_BIN)/evalTrees tree.$*.laml_trees.nwk -t tree.$*.true.nwk > $@
+	sed 's/^\[&R\]//g' tree.$*.laml_trees.nwk > tmp.nwk
+	$(PHAST_BIN)/evalTrees tmp.nwk -t tree.$*.true.nwk > $@
+	rm tmp.nwk
 
 tree.%.rf: tree.%.true.rf.txt tree.%.var.rf.txt tree.%.laml.rf.txt
 	rm -f $@
@@ -119,4 +125,7 @@ clean:
 	rm -rf tree.*.* summary.*.txt eval.all.*.txt
 
 clean_laml:
-	rm -rf tree.*.laml* eval.all.*.txt summary.*.txt tree.*.lnl tree.*.time tree.*.rf
+	rm tree.*.laml* eval.all.*.txt summary.*.txt tree.*.lnl tree.*.time tree.*.rf
+
+clean_vine:
+	rm tree.*.var* tree.*.mean* eval.all.*.txt summary.*.txt tree.*.lnl tree.*.time tree.*.rf
