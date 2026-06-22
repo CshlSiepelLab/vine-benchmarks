@@ -1,0 +1,14 @@
+NTAXA := 50
+NSAMP := 10
+NSITES := 300
+EXPHEIGHT := 1
+BEAST_MCMCLEN := 2653333
+MRBAYES_MCMCLEN := 866667
+MCMC_SAMPLEFREQ := 1
+MCMC_PRINTFREQ := 1000
+VINE_NSAMP := 1000
+VAROPT?=-M 200 -c 50 -D 6 --hky85 -s $(VINE_NSAMP) -v 0
+# VAROPT?=-M 200 -c 50 -D 6 --hky85 -s $(VINE_NSAMP) -v 3 --cov DIST --planar-flow --radial-flow
+
+include ../common.mk
+

@@ -1,0 +1,35 @@
+Bootstrap: docker
+From: python:3.9-slim
+
+%post
+    apt-get update -y && \
+    apt-get install -y --no-install-recommends \
+        graphviz \
+        libgraphviz-dev \
+        gcc \
+        g++ \
+        git \
+        build-essential \
+        less \
+        vim \
+        nano \
+        procps \
+        wget \
+        curl \
+        ca-certificates \
+        time \
+        libbz2-dev \
+        zlib1g-dev \
+        liblzma-dev && \
+        rm -rf /var/lib/apt/lists/*
+
+    pip install --no-cache-dir pygraphviz ipython
+    pip install --no-cache-dir metient
+
+%runscript
+    #!/bin/bash
+    "$@"
+
+
+
+

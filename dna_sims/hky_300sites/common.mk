@@ -13,7 +13,8 @@ ROOT := $(MAIN_DIR)/$(ROOT_SUFFIX)
 BIN := $(MAIN_DIR)/bin
 PYTHON_SRC := $(MAIN_DIR)/python/src
 PHAST_BIN := $(BIN)/phast/bin
-VINE_BIN := $(BIN)/vine/bin
+# VINE_BIN := $(BIN)/vine/bin
+VINE_BIN := /home/staklins/projects/vine_project/vine/bin
 BEAST_BIN := $(MAIN_DIR)/bin/beast/bin
 BEAST := $(BEAST_BIN)/beast
 MRBAYES := $(BIN)/mb
@@ -37,6 +38,7 @@ VAR := $(patsubst %.true.nwk,%.var.nwk,$(TREES))
 EVALRF := $(patsubst tree.%.true.nwk,tree.%.rf,$(TREES))
 EVALMF := $(patsubst tree.%.true.nwk,tree.%.mf,$(TREES))
 EVALDIST := $(patsubst tree.%.true.nwk,tree.%.dist,$(TREES))
+EVALENT := $(patsubst tree.%.true.nwk,tree.%.ent,$(TREES))
 LNL := $(patsubst tree.%.true.nwk,tree.%.lnl,$(TREES))
 TIME := $(patsubst tree.%.true.nwk,tree.%.time,$(TREES))
 VARLOG := $(patsubst %.true.nwk,%.var.nwk.log,$(TREES))
@@ -57,7 +59,7 @@ MRBAYESLOG := $(patsubst %.true.nwk,%.mrbayes.nex.p,$(TREES))
 # evalTrees stuff
 FAHELDOUT := $(patsubst %.true.nwk,%.heldout.fa,$(TREES))
 
-all: eval.all.lnl.txt eval.all.rf.txt eval.all.mf.txt eval.all.time.txt eval.all.dist.txt
+all: eval.all.lnl.txt eval.all.rf.txt eval.all.mf.txt eval.all.time.txt eval.all.dist.txt eval.all.ent.txt
 
 simulate: $(FA)
 max_lik: $(ML) $(RAXML)
@@ -66,6 +68,14 @@ beast: $(BEASTLOG)
 mrbayes: $(MRBAYESLOG)
 ml: $(ML)
 beastnwk: $(BEASTNWK)
+vine: $(VAR) $(VARLOG)
+
+# clean up vine files for rerun
+vineclean:
+	rm -f $(VAR) $(VARLOG) $(LNL) $(TIME) eval.all.lnl.txt eval.all.time.txt tree.*.varlnl
+
+vinemfclean:
+	rm -f $(EVALRF) $(EVALMF) eval.all.mf.txt eval.all.rf.txt
 
 tree.%.true.nwk: 
 	$(BIN)/bdTree3 -b 1 -d 0.5 --oversample-k 3 --height 5 --min-edge 0.02 --expected-height $(EXPHEIGHT) --no-stem --ucln-sd 0.6 --target-stat median -n $(NTAXA) | sed 's/\[\&[UR]\] //' > $@
@@ -76,7 +86,7 @@ tree.%.fa: tree.%.true.nwk
 	cat $< >> tmp.$*.fa.mod
 	$(PHAST_BIN)/base_evolve --nsites $(NSITES) tmp.$*.fa.mod > $@
 	rm tmp.$*.fa.mod
-	
+
 tree.%.heldout.fa: tree.%.true.nwk
 	cp ../base-hky.mod tmp.$*.heldout.mod
 	echo -n "TREE: " >> tmp.$*.heldout.mod
@@ -94,7 +104,8 @@ tree.%.ml.nwk: tree.%.ml.mod
 	$(PHAST_BIN)/tree_doctor --tree-only $^ > $@
 
 tree.%.var.nwk tree.%.var-time tree.%.var.nwk.log: tree.%.fa 
-	/usr/bin/time -o tree.$*.var-time $(VINE_BIN)/vine $< -l tree.$*.var.nwk.log $(VAROPT) --mean tree.$*.mean.nwk --taylor > tree.$*.var.nwk
+	/usr/bin/time -o tree.$*.var-time $(VINE_BIN)/vine $< -l tree.$*.var.nwk.log $(VAROPT) \
+	--mean tree.$*.mean.nwk > tree.$*.var.nwk
 
 tree.%.beast.xml:
 	cp "$(BEAST_TEMPLATE)" $@
@@ -264,19 +275,29 @@ tree.%.geophylnl: tree.%.geophy.eval.latest.txt
 tree.%.lnl: tree.%.modlnl tree.%.varlnl tree.%.beastlnl tree.%.mrbayeslnl tree.%.raxmllnl 
 	cat $^ | awk '{if (true == 0) true = $$2; printf "%s %f\n", $$0, $$2 - true}' > $@
 
+# When EXCLUDE is set (e.g. EXCLUDE=3 or EXCLUDE=3,5,7), those replicates are
+# omitted; when EXCLUDE is empty, all replicates are included.
 eval.all.lnl.txt: $(LNL)
-	#echo -e "true\tnj\tml\tvine\tbeast\tmrbayes\traxml\tdodonaphy\tgeophy" > lnltmp
-	echo -e "true\tnj\tml\tvine\tbeast\tmrbayes\traxml" > lnltmp
-	for file in $^ ; do \
-		b=$$(basename $$file); \
-		if [[ "$$b" == "tree.3.lnl" ]]; then \
-			continue; \
-		fi; \
-		awk '{printf "%s\t", $$2}' $${file} >> lnltmp ;\
-		echo >> lnltmp ;\
-	done
-	awk '{x1 += $$1; x2 += $$2; x3 += $$3; x4 += $$4; x5 += $$5; x6 += $$6; x7 += $$7; x8 += $$8; x9 += $$9; print $$0} END {printf ("-----\n%f\t%f\t%f\t%f\t%f\t%f\t%f\n", x1/(NR-1), x2/(NR-1), x3/(NR-1), x4/(NR-1), x5/(NR-1), x6/(NR-1), x7/(NR-1)) }' lnltmp > $@
-	rm lnltmp
+	echo -e "true\tnj\tml\tvine\tbeast\tmrbayes\traxml" > lnltmp; \
+	excl=",$(EXCLUDE),"; \
+	for file in $(LNL); do \
+	  num=$$(basename $$file | sed 's/tree\.\([0-9]*\)\.lnl/\1/'); \
+	  case "$$excl" in *",$$num,"*) continue ;; esac; \
+	  awk '{printf "%s\t", $$2}' $$file >> lnltmp; \
+	  echo >> lnltmp; \
+	done; \
+	awk '{ \
+	  x1 += $$1; x2 += $$2; x3 += $$3; x4 += $$4; \
+	  x5 += $$5; x6 += $$6; x7 += $$7; \
+	  print $$0 \
+	} END { \
+	  n = NR - 1; \
+	  if (n > 0) \
+	    printf ("-----\n%f\t%f\t%f\t%f\t%f\t%f\t%f\n", \
+	      x1/n, x2/n, x3/n, x4/n, x5/n, x6/n, x7/n \
+	    ) \
+	}' lnltmp > $@; \
+	rm -f lnltmp
 
 # Create a version where each row's values are offset by its true value
 updated.all.lnl.txt: eval.all.lnl.txt
@@ -440,6 +461,19 @@ eval.all.mf.txt: $(EVALMF)
 	awk '{x1 += $$1; x1s += ($$2 * $$2); if ($$3 != "nan") x2 += $$3; x2s += ($$4 * $$4); if ($$5 != "nan") x3 += $$5; x3s += ($$6 * $$6); x4 += $$7; x4s += ($$8 * $$8); x5 += $$9; x5s += ($$10 * $$10); if ($$11 != "nan") x6 += $$11; x6s += ($$12 * $$12); print $$0} END {printf "-----\n%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", x1/(NR-1), sqrt(x1s/(NR-1)), x2/(NR-1), sqrt(x2s/(NR-1)), x3/(NR-1), sqrt(x3s/(NR-1)), x4/(NR-1), sqrt(x4s/(NR-1)), x5/(NR-1), sqrt(x5s/(NR-1)), x6/(NR-1), sqrt(x6s/(NR-1))}' tmpmf > $@
 	rm -f tmpmf
 
+# topological entropy
+tree.%.var.ent.txt: tree.%.var.nwk
+	$(VINE_BIN)/evalTrees -e tree.$*.var.nwk | awk '{printf "%f\t", $$NF} END {printf "\n"}' > $@
+
+tree.%.beast.ent.txt: tree.%.beast.nwk  
+	$(VINE_BIN)/evalTrees -e tree.$*.beast.nwk | awk '{printf "%f\t", $$NF} END {printf "\n"}' > $@
+
+tree.%.ent: tree.%.var.ent.txt tree.%.beast.ent.txt
+	paste $^ > $@
+
+eval.all.ent.txt: $(EVALENT)
+	cat $^ | awk 'BEGIN {printf "vine_spl\tvine_top\tvine_br\t\tbeast_spl\tbeast_top\tbeast_br\n"} {x1 += $$1; x2 += $$2; x3 += $$3; x4 += $$4; x5 += $$5; x6 += $$6; print $$0} END {printf "-----\n%f\t%f\t%f\t\t%f\t%f\t%f\n", x1/NR, x2/NR, x3/NR, x4/NR, x5/NR, x6/NR}' > $@
+
 # for use in debugging
 tracer: $(TRACER)
 
@@ -452,6 +486,21 @@ clean:
 	rm -rf tree.*.raxml*
 	rm -rf tree.*.dodonaphy*
 	rm -rf tree.*.geophy*
+
+archive_vine:
+	archive_dir="archive.vine_$$(date +%Y-%m-%d_%H:%M:%S)"; \
+	mkdir $$archive_dir; \
+	mv tree.*.var* $$archive_dir/; \
+	mv eval.all.*.txt $$archive_dir/; \
+	mv tree.*.lnl $$archive_dir/; \
+	mv tree.*.time $$archive_dir/; \
+	mv tree.*.rf $$archive_dir/; \
+	mv tree.*.mf $$archive_dir/; \
+	mv tree.*.dist $$archive_dir/; \
+	mv tree.*.ent $$archive_dir/
+
+clean_vine:
+	rm -rf tree.*.var* tree.*.lnl tree.*.time tree.*.rf tree.*.mf tree.*.dist tree.*.ent eval.all.*.txt
 
 # Some useful rules for archiving results more efficiently
 archive_mcmc:

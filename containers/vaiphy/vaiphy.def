@@ -1,0 +1,26 @@
+Bootstrap: docker
+From: continuumio/miniconda3
+
+%post
+  set -e
+  conda config --system --set always_yes true
+  conda config --system --set channel_priority strict
+  conda config --system --add channels pytorch
+  conda config --system --add channels conda-forge
+  conda config --system --add channels bioconda
+  conda config --system --add channels defaults
+
+  conda create -n vaiphy \
+    python=3.10 numpy bitarray iqtree 'pytorch<2.0' 'networkx=2.8' phyml dendropy matplotlib numba scipy
+
+  /opt/conda/envs/vaiphy/bin/pip install \
+    bio ete3
+
+  conda clean --all --yes
+
+%environment
+  export PATH=/opt/conda/envs/vaiphy/bin:$PATH
+  export CONDA_DEFAULT_ENV=vaiphy
+
+%runscript
+  exec "$@"

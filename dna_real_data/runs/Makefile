@@ -25,7 +25,7 @@ tree.ds8.mrbayes.%: MRBAYES_MCMCLEN := 933333
 NUM_MCMC_SAMPLES := 10000
 MCMC_PRINTFREQ := 1000
 VINE_NSAMP := 1000
-VAROPT?=-M 300 -b 10 -c 100 -D 7 --hky85 -s $(VINE_NSAMP) -v 0 --taylor 
+VAROPT?=-M 400 -c 100 --hky85 -s $(VINE_NSAMP) -v 0 
 
 
 # Prevent Make from removing files it thinks it should clean up
@@ -43,11 +43,6 @@ PHAST_BIN := $(BIN)/phast/bin
 BEAST := $(BIN)/beast/bin/beast
 MRBAYES := $(BIN)/mb
 BEAST_TEMPLATE := $(MAIN_DIR)/dna_sims/hky_300sites/beast_template.xml
-CONTAINERS := $(MAIN_DIR)/containers
-DODONAPHY_SIF := $(CONTAINERS)/dodonaphy/dodonaphy.sif
-GEOPHY_SIF := $(CONTAINERS)/geophy/geophy.sif
-GEOPHY_CONFIG := $(CONTAINERS)/geophy/default.yaml
-# VAIPHY_SIF := $(CONTAINERS)/vbpi_gnn_env/vaiphy.sif
 
 # Use all real FASTA files in the directory with the real DS1-8 data
 FA_DIR := /local/storage/no-backup/vine-benchmarks/dna_real_data/data
@@ -67,6 +62,10 @@ TIME := $(addprefix tree.,$(addsuffix .time,$(BASENAMES)))
 
 
 all: eval.all.lnl.txt eval.all.time.txt
+
+# clean up vine files for rerun
+vineclean:
+	rm -f $(VAR) $(LNL) $(TIME) eval.all.lnl.txt eval.all.time.txt *.varlnl *.var.nwk.log
 
 infer: $(NJ) $(ML) $(VAR) $(BEASTLOG) $(MRBAYESLOG)
 
@@ -117,25 +116,6 @@ tree.%.raxml.term: $(FA_DIR)/%.fa
 	$(BIN)/raxml-ng --msa tree.$*.raxml.fa --model HKY+F --prefix tree.$* --search1 --threads 1 > tree.$*.raxml.term
 	rm -f tree.$*.raxml.fa
 
-# tree.%.vaiphy.term: tree.%.nex
-# 	mkdir -p tree.$*
-# 	cp tree.$*.nex tree.$*/tree.$*.nex
-# 	/usr/bin/time -o tree.$*.vaiphy-time \
-# 	singularity exec \
-# 		--bind $(CURDIR):/mnt \
-# 		--bind /local/storage/no-backup/vine-benchmarks/VaiPhy:/opt/vaiphy \
-# 		--pwd /mnt \
-# 		--env PYTHONWARNINGS=ignore \
-# 		$(VAIPHY_SIF) \
-# 		python -W ignore \
-# 			/opt/vaiphy/src/main.py \
-# 			--data_path /mnt/ \
-# 			--result_path /mnt/ \
-# 			--max_iter 200 \
-# 			--n_particles 128 \
-# 		--dataset tree.$* > tree.$*.vaiphy.log 2> tree.$*.vaiphy.err
-# 	echo done > $@
-
 tree.%.nj.mod: tree.%.nj.nwk $(FA_DIR)/%.fa
 	cp base-hky.mod tmp.mod
 	echo -n "TREE: " >> tmp.mod
@@ -152,7 +132,7 @@ tree.%.modlnl: tree.%.nj.mod tree.%.ml.mod
 
 tree.%.varlnl: tree.%.var.nwk.log 
 	echo -n "$^ " > $@
-	tail -1 $^ | awk '{print $$11}' >> $@ 
+	tail -1 $^ | awk '{print $$19}' >> $@ 
 
 tree.%.beastlnl: tree.%.beast.log
 	echo -n "$^ " > $@

@@ -1,0 +1,6 @@
+NTAXA := 100
+NSAMP := 10
+MCMCLENGTH ?= 40000000
+MCMCSAMPLEFREQ ?= 2000
+
+include ../common.mk

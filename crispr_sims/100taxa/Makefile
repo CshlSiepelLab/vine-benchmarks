@@ -1,0 +1,11 @@
+NTAXA := 100
+NSAMP := 10
+NCASETTES := 10
+CASETTESIZE := 3
+VAROPT?=-M 400 -c 100 -D 8 -v 0 
+
+MCMCLENGTH := 5000000
+MCMCSAMPLEFREQ := 500
+
+include ../common.mk
+

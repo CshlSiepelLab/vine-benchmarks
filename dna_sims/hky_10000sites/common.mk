@@ -288,27 +288,33 @@ eval.all.time.txt: $(TIME)
 # (1) modelFit
 # extract kappa from vine log
 tree.%.var.mf.txt: tree.%.var.nwk tree.%.heldout.fa tree.%.var.nwk.log
-	kappa=`tail -1 tree.$*.var.nwk.log | awk '{print $$19}'` ;\
-	$(PHAST_BIN)/evalTrees tree.$*.var.nwk -f tree.$*.heldout.fa -k $$kappa > $@
+	kappa=`awk '\
+	/ kappa: / {\
+	  for(i=1;i<=NF;i++) if($$i=="kappa:"){k=$$(i+1); gsub(/,/, "", k)}\
+	}\
+	$$1 ~ /^[0-9]+$$/ {last=$$NF}\
+	END {if(k!="") print k; else print last}\
+	' tree.$*.var.nwk.log` ;\
+	$(VINE_BIN)/evalTrees tree.$*.var.nwk -f tree.$*.heldout.fa -k $$kappa > $@
 
 # use true kappa
 tree.%.true.mf.txt: tree.%.true.nwk tree.%.heldout.fa
-	$(PHAST_BIN)/evalTrees tree.$*.true.nwk -f tree.$*.heldout.fa -k 4 > $@
+	$(VINE_BIN)/evalTrees tree.$*.true.nwk -f tree.$*.heldout.fa -k 4 > $@
 
 # use ML kappa
 tree.%.nj.mf.txt: tree.%.nj.nwk tree.%.heldout.fa tree.%.ml.mod
 	kappa=`awk '$$1 == "BACKGROUND:" {pi_c = $$3; pi_g = $$4 } $$1<0 {print ($$3/pi_g) / ($$2/pi_c)}' tree.$*.ml.mod` ;\
-	$(PHAST_BIN)/evalTrees tree.$*.nj.nwk -f tree.$*.heldout.fa -k $$kappa > $@
+	$(VINE_BIN)/evalTrees tree.$*.nj.nwk -f tree.$*.heldout.fa -k $$kappa > $@
 
 # use ML kappa
 tree.%.ml.mf.txt: tree.%.ml.nwk tree.%.heldout.fa tree.%.ml.mod
 	kappa=`awk '$$1 == "BACKGROUND:" {pi_c = $$3; pi_g = $$4 } $$1<0 {print ($$3/pi_g) / ($$2/pi_c)}' tree.$*.ml.mod` ;\
-	$(PHAST_BIN)/evalTrees tree.$*.ml.nwk -f tree.$*.heldout.fa -k $$kappa > $@
+	$(VINE_BIN)/evalTrees tree.$*.ml.nwk -f tree.$*.heldout.fa -k $$kappa > $@
 
 # use posterior mean kappa from beast log
 tree.%.beast.mf.txt: tree.%.beast.nwk tree.%.heldout.fa tree.%.beast.log
 	kappa=`awk '{if (inlog) {sum += $$10; n++} ; if ($$1 == "Sample") inlog=1} END {print sum/n}' tree.$*.beast.log` ;\
-	$(PHAST_BIN)/evalTrees tree.$*.beast.nwk -f tree.$*.heldout.fa -k $$kappa > $@
+	$(VINE_BIN)/evalTrees tree.$*.beast.nwk -f tree.$*.heldout.fa -k $$kappa > $@
 
 # need to get kappa from mrbayes log
 tree.%.mrbayes.mf.txt: tree.%.mrbayes.nwk tree.%.heldout.fa \
@@ -320,7 +326,7 @@ tree.%.mrbayes.mf.txt: tree.%.mrbayes.nwk tree.%.heldout.fa \
 	  $$1!="Gen" && c { s+=$$c; n++ }\
 	  END { if(n) printf "%.6f\\n", s/n }\
 	' tree.$*.mrbayes.nex.p` ;\
-	$(PHAST_BIN)/evalTrees tree.$*.mrbayes.nwk -f tree.$*.heldout.fa \
+	$(VINE_BIN)/evalTrees tree.$*.mrbayes.nwk -f tree.$*.heldout.fa \
 	  -k $$kappa > $@
 
 
@@ -333,22 +339,22 @@ tree.%.mf: tree.%.true.mf.txt tree.%.nj.mf.txt tree.%.ml.mf.txt tree.%.var.mf.tx
 
 # (2) distances
 tree.%.true.dist.txt: tree.%.true.nwk 
-	$(PHAST_BIN)/evalTrees tree.$*.true.nwk > $@
+	$(VINE_BIN)/evalTrees tree.$*.true.nwk > $@
 
 tree.%.var.dist.txt: tree.%.var.nwk tree.%.true.dist.txt
-	$(PHAST_BIN)/evalTrees tree.$*.var.nwk > tmp
+	$(VINE_BIN)/evalTrees tree.$*.var.nwk > tmp
 	python3 "$(PYTHON_SRC)/sumDists.py" tmp tree.$*.true.dist.txt | grep -v '^#' > $@
 
 tree.%.nj.dist.txt: tree.%.nj.nwk  tree.%.true.dist.txt
-	$(PHAST_BIN)/evalTrees tree.$*.nj.nwk > tmp
+	$(VINE_BIN)/evalTrees tree.$*.nj.nwk > tmp
 	python3 "$(PYTHON_SRC)/sumDists.py" tmp tree.$*.true.dist.txt | grep -v '^#' > $@
 
 tree.%.ml.dist.txt: tree.%.ml.nwk  tree.%.true.dist.txt
-	$(PHAST_BIN)/evalTrees tree.$*.ml.nwk > tmp
+	$(VINE_BIN)/evalTrees tree.$*.ml.nwk > tmp
 	python3 "$(PYTHON_SRC)/sumDists.py" tmp tree.$*.true.dist.txt | grep -v '^#' > $@
 
 tree.%.beast.dist.txt: tree.%.beast.nwk  tree.%.true.dist.txt
-	$(PHAST_BIN)/evalTrees tree.$*.beast.nwk > tmp
+	$(VINE_BIN)/evalTrees tree.$*.beast.nwk > tmp
 	python3 "$(PYTHON_SRC)/sumDists.py" tmp tree.$*.true.dist.txt | grep -v '^#' > $@
 
 tree.%.dist: tree.%.ml.dist.txt tree.%.var.dist.txt tree.%.beast.dist.txt
@@ -359,19 +365,19 @@ eval.all.dist.txt: $(EVALDIST)
 
 # (3) RF dist
 tree.%.var.rf.txt: tree.%.var.nwk tree.%.true.nwk
-	$(PHAST_BIN)/evalTrees tree.$*.var.nwk -t tree.$*.true.nwk > $@
+	$(VINE_BIN)/evalTrees tree.$*.var.nwk -t tree.$*.true.nwk > $@
 
 tree.%.true.rf.txt: tree.%.true.nwk tree.%.true.nwk
-	$(PHAST_BIN)/evalTrees tree.$*.true.nwk -t tree.$*.true.nwk > $@
+	$(VINE_BIN)/evalTrees tree.$*.true.nwk -t tree.$*.true.nwk > $@
 
 tree.%.nj.rf.txt: tree.%.nj.nwk tree.%.true.nwk
-	$(PHAST_BIN)/evalTrees tree.$*.nj.nwk -t tree.$*.true.nwk > $@
+	$(VINE_BIN)/evalTrees tree.$*.nj.nwk -t tree.$*.true.nwk > $@
 
 tree.%.ml.rf.txt: tree.%.ml.nwk tree.%.true.nwk
-	$(PHAST_BIN)/evalTrees tree.$*.ml.nwk -t tree.$*.true.nwk > $@
+	$(VINE_BIN)/evalTrees tree.$*.ml.nwk -t tree.$*.true.nwk > $@
 
 tree.%.beast.rf.txt: tree.%.beast.nwk tree.%.true.nwk
-	$(PHAST_BIN)/evalTrees tree.$*.beast.nwk -t tree.$*.true.nwk > $@
+	$(VINE_BIN)/evalTrees tree.$*.beast.nwk -t tree.$*.true.nwk > $@
 
 tree.%.rf: tree.%.true.rf.txt tree.%.nj.rf.txt tree.%.ml.rf.txt tree.%.var.rf.txt tree.%.beast.rf.txt
 	rm -f $@

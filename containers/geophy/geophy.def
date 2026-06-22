@@ -1,0 +1,63 @@
+Bootstrap: docker
+From: debian:bookworm-slim
+
+%labels
+  Maintainer hassett
+  Description Geophy env with Python 3.9.5 via pyenv
+
+%environment
+  export PATH=/opt/venv/bin:$PATH
+
+%files
+  requirements.txt /opt/app/requirements.txt
+  . /opt/app
+
+%post
+  set -e
+  apt-get update && \
+    apt-get install -y --no-install-recommends \
+    build-essential \
+    git \
+    curl \
+    ca-certificates \
+    libssl-dev \
+    zlib1g-dev \
+    libbz2-dev \
+    libreadline-dev \
+    libsqlite3-dev \
+    libffi-dev \
+    liblzma-dev \
+    xz-utils \
+    time && \
+    rm -rf /var/lib/apt/lists/*
+
+  git clone https://github.com/pyenv/pyenv.git /opt/pyenv
+  export PYENV_ROOT=/opt/pyenv
+  export PATH="$PYENV_ROOT/bin:$PATH"
+  eval "$(pyenv init -)"
+  pyenv install -s 3.9.5
+  pyenv global 3.9.5
+  python -V
+
+  python -m venv /opt/venv
+  . /opt/venv/bin/activate
+  pip install --upgrade pip setuptools wheel
+
+  cd /opt/app
+  pip install -r requirements.txt
+  # Ensure clean clone during setup
+  if [ -d ds-data ]; then
+    rm -rf ds-data
+  fi
+  make setup
+
+%runscript
+  . /opt/venv/bin/activate
+  cd /opt/app
+  if [ "$#" -eq 0 ]; then
+    exec bash
+  else
+    exec "$@"
+  fi
+
+

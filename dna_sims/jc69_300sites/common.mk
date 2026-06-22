@@ -23,7 +23,7 @@ DODONAPHY_SIF := $(MAIN_DIR)/dodonaphy/dodonaphy.sif
 GEOPHY_SIF := $(MAIN_DIR)/geophy/geophy.sif
 GEOPHY_CONFIG := $(MAIN_DIR)/geophy/default.yaml
 VBPI_GNN_SIF := $(MAIN_DIR)/vbpi_gnn_env/vbpi_gnn.sif
-VAIPHY_SIF := $(MAIN_DIR)/vbpi_gnn_env/vaiphy.sif
+VAIPHY_SIF := $(MAIN_DIR)/vaiphy/vaiphy.sif
 BURNIN_PCT := 10
 
 
@@ -93,7 +93,7 @@ tree.%.ml.nwk: tree.%.ml.mod
 	$(PHAST_BIN)/tree_doctor --tree-only $^ > $@
 
 tree.%.var.nwk tree.%.var-time tree.%.var.nwk.log: tree.%.fa 
-	/usr/bin/time -o tree.$*.var-time $(VINE_BIN)/vine $< -l tree.$*.var.nwk.log $(VAROPT) --mean tree.$*.mean.nwk --taylor > tree.$*.var.nwk
+	/usr/bin/time -o tree.$*.var-time $(VINE_BIN)/vine $< -l tree.$*.var.nwk.log $(VAROPT) --mean tree.$*.mean.nwk > tree.$*.var.nwk
 
 tree.%.beast.xml:
 	cp "$(BEAST_TEMPLATE)" $@
@@ -526,6 +526,10 @@ clean:
 	rm -rf tree.*.geophy*
 
 
+clean_vine:
+	rm -rf tree.*.var* eval.all.*.txt tree.*.mf tree.*.rf tree.*.dist tree.*.lnl updated.all.lnl.txt
+
+
 # Some useful rules for archiving results more efficiently
 archive_mcmc:
 	archive_dir="archive.beast_mrbayes_$$(date +%Y-%m-%d_%H:%M:%S)"; \
@@ -540,3 +544,14 @@ archive_mcmc:
 	mv tree.*.dist $$archive_dir/; \
 	mv beast_ess_runtime_scale_factor* $$archive_dir/; \
 	mv mrbayes_ess_runtime_scale_factor* $$archive_dir/
+
+archive_vine:
+	archive_dir="archive.vine_$$(date +%Y-%m-%d_%H:%M:%S)"; \
+	mkdir $$archive_dir; \
+	mv tree.*.var* $$archive_dir/; \
+	mv eval.all.*.txt $$archive_dir/; \
+	mv tree.*.lnl $$archive_dir/; \
+	mv tree.*.time $$archive_dir/; \
+	mv tree.*.rf $$archive_dir/; \
+	mv tree.*.mf $$archive_dir/; \
+	mv tree.*.dist $$archive_dir/

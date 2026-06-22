@@ -34,4 +34,5 @@ for node in tree.traverse():
         i += 1
 
 with open(outfile, "w") as it:
-    it.write(tree.write(format=8))
+    # it.write(tree.write(format=8))    # Write node and leaf names, but no branch lengths
+    it.write(tree.write(format=9))  # Write leaf names only and no branch lengths

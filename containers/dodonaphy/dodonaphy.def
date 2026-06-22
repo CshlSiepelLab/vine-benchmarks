@@ -1,0 +1,46 @@
+BootStrap: docker
+From: python:3.7-slim
+
+%labels
+    Description "Python 3.7, Dodonaphy, and hydraPlus with other basic python package dependencies and some bash commands installed."
+
+%files
+    dodonaphy.def /opt/dodonaphy/dodonaphy.def
+
+%post
+    set -eux
+
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+        git \
+        build-essential \
+        less \
+        vim \
+        nano \
+        procps \
+        wget \
+        curl \
+        ca-certificates \
+        time && \
+        rm -rf /var/lib/apt/lists/*
+
+    pip install --no-cache-dir scipy
+
+    rm -rf /tmp/hydraPlus || true
+    git clone https://github.com/mattapow/hydraPlus.git /tmp/hydraPlus
+    pip install --no-cache-dir /tmp/hydraPlus
+    rm -rf /tmp/hydraPlus
+
+    pip install --no-cache-dir cython
+    pip install --no-cache-dir numpy
+
+    rm -rf /tmp/dodonaphy || true
+    git clone https://github.com/mattapow/dodonaphy.git /tmp/dodonaphy
+    pip install --no-cache-dir /tmp/dodonaphy
+    rm -rf /tmp/dodonaphy
+
+%environment
+    export PATH="/usr/local/bin:$PATH"
+
+%runscript
+    exec "$@"
