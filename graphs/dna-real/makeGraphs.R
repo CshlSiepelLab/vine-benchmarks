@@ -1,5 +1,8 @@
 #!/usr/bin/env Rscript
 
+args <- commandArgs(trailingOnly = TRUE)
+use_relative_lnl <- "--relative" %in% args
+
 suppressMessages(library(ggplot2))
 suppressMessages(library(scales))
 
@@ -71,16 +74,17 @@ build_ds_levels <- function(ds_vec) {
 numify <- function(x) as.numeric(gsub(",", "", x, fixed = TRUE))
 
 ## ====================================================
-## 1) LOG-LIKELIHOODS (eval.all.lnl.txt) — NJ/vine/BEAST/MrBayes
-##    Plot relative departures from per-DS mean, in percent
+## 1) LOG-LIKELIHOODS (eval.all.lnl.txt) — NJ/vine/BEAST/RAxML
 ## ====================================================
 lnl_raw <- read_eval_table("eval.all.lnl.txt")
 
+# Normalize column names we care about; ignore 'ml'
 # First col header is 's' per your file; rename it to 'ds' for consistency
 names(lnl_raw)[1] <- "ds"
 
 # Keep only ds + desired methods, in this order
 keep_methods_lnl <- c("NJ","vine","beast","mrbayes")
+# Column names in file are lowercase for methods except NJ spelled 'nj'? Let's normalize to match keep_methods_lnl
 names(lnl_raw) <- sub("^nj$", "NJ", names(lnl_raw), ignore.case = TRUE)
 
 present_lnl <- intersect(keep_methods_lnl, names(lnl_raw))
@@ -108,11 +112,13 @@ lnl_long <- do.call(rbind, lapply(present_lnl, function(m) {
     stringsAsFactors = FALSE
   )
 }))
-
-# Compute per-DS mean across all methods, then relative percent departure
-lnl_means <- tapply(lnl_long$value, lnl_long$ds, mean, na.rm = TRUE)
-lnl_long$ds_mean  <- lnl_means[lnl_long$ds]
-lnl_long$delta_pct <- (lnl_long$value - lnl_long$ds_mean) / abs(lnl_long$ds_mean) * 100
+if (use_relative_lnl) {
+  lnl_means <- tapply(lnl_long$value, lnl_long$ds, mean, na.rm = TRUE)
+  lnl_long$ds_mean  <- lnl_means[lnl_long$ds]
+  lnl_long$plot_y <- (lnl_long$value - lnl_long$ds_mean) / abs(lnl_long$ds_mean) * 100
+} else {
+  lnl_long$plot_y <- lnl_long$value
+}
 
 lnl_long$ds     <- factor(lnl_long$ds, levels = ds_levels)
 lnl_long$method <- factor(lnl_long$method, levels = present_lnl)
@@ -121,26 +127,34 @@ lnl_long$method <- factor(lnl_long$method, levels = present_lnl)
 ave_idx <- match("ave", levels(lnl_long$ds))
 ave_bg  <- if (!is.na(ave_idx)) data.frame(xmin = ave_idx - 0.6, xmax = ave_idx + 0.6, ymin = -Inf, ymax = Inf) else NULL
 
-p_lnl_ds <- ggplot(lnl_long, aes(x = ds, y = delta_pct, fill = method)) +
-  # Gray background for "ave"
+if (use_relative_lnl) {
+  y_label <- "ΔLnl (%)"
+  y_scale <- scale_y_continuous(breaks = pretty_breaks(n = 8),
+                                expand = expansion(mult = c(0.05, 0.05)))
+} else {
+  min_y <- min(lnl_long$plot_y, na.rm = TRUE)
+  if (!is.finite(min_y) || min_y >= 0) min_y <- -1
+  y_label <- "Log-likelihood"
+  y_scale <- scale_y_continuous(limits = c(min_y, 0),
+                                breaks = pretty_breaks(n = 8),
+                                expand = c(0, 0))
+}
+
+p_lnl_ds <- ggplot(lnl_long, aes(x = ds, y = plot_y, fill = method)) +
   { if (!is.null(ave_bg))
       geom_rect(data = ave_bg, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
                 inherit.aes = FALSE, fill = "gray80", alpha = 0.3) } +
-  # Blue separator before "ave"
   { if (!is.na(ave_idx))
       geom_vline(xintercept = ave_idx - 0.7, color = unname(method_palette["NJ"]), linewidth = 0.5) } +
   geom_col(position = position_dodge(width = 0.7), width = 0.5) +
   geom_hline(yintercept = 0, linewidth = 0.3) +
-  labs(x = "DS", y = "\u0394Lnl (%)", fill = "Method") +
+  labs(x = "DS", y = y_label, fill = "Method") +
   scale_fill_manual(
     values = method_palette[levels(lnl_long$method)],
     breaks = levels(lnl_long$method),
     labels = label_map(levels(lnl_long$method))
   ) +
-  scale_y_continuous(
-    breaks = pretty_breaks(n = 8),
-    expand = expansion(mult = c(0.05, 0.05))
-  ) +
+  y_scale +
   scale_x_discrete(
     labels = function(x) unname(ds_num_map[x]),
     expand = expansion(add = c(0.05, 0.25))
@@ -155,7 +169,7 @@ p_lnl_ds <- ggplot(lnl_long, aes(x = ds, y = delta_pct, fill = method)) +
 save_pdf(p_lnl_ds, "dna_lnl_by_ds.pdf", width = 6.8, height = 3.0)
 
 ## ===============================================
-## 2) RUNNING TIMES (eval.all.time.txt) — vine/BEAST/MrBayes
+## 2) RUNNING TIMES (eval.all.time.txt) — vine/BEAST/RAxML
 ## ===============================================
 time_raw <- read_eval_table("eval.all.time.txt")
 

@@ -1,9 +1,5 @@
 export SHELL=/usr/bin/bash
 
-# Method settings
-# BEAST_MCMCLEN := 4000000
-# MRBAYES_MCMCLEN := 4000000
-
 tree.ds1.beast.%: BEAST_MCMCLEN := 1800000
 tree.ds2.beast.%: BEAST_MCMCLEN := 1800000
 tree.ds3.beast.%: BEAST_MCMCLEN := 1800000
@@ -109,12 +105,6 @@ tree.%.mrbayes.term tree.%.mrbayes.nex.p tree.%.mrbayes.nex.t: tree.%.mrbayes.ne
 tree.%.nj.nex: tree.%.nj.nwk
 	$(BIN)/nwk2nex $< $@
 
-# Run raxml
-tree.%.raxml.term: $(FA_DIR)/%.fa
-	rm -f $@
-	sed 's/> />/g' $< > tree.$*.raxml.fa
-	$(BIN)/raxml-ng --msa tree.$*.raxml.fa --model HKY+F --prefix tree.$* --search1 --threads 1 > tree.$*.raxml.term
-	rm -f tree.$*.raxml.fa
 
 tree.%.nj.mod: tree.%.nj.nwk $(FA_DIR)/%.fa
 	cp base-hky.mod tmp.mod
@@ -142,141 +132,30 @@ tree.%.mrbayeslnl: tree.%.mrbayes.nex.p tree.%.mrbayes.term
 	echo -n "$< " > $@
 	grep -v '^\[' $< | grep -v '^Gen' | awk '{print $$2}' | sort -gr | head -1 | awk '{printf "%.6f\n", $$1}' >> $@
 
-tree.%.raxmllnl: tree.%.raxml.term
-	echo -n "$^ " > $@
-	grep 'Final LogLikelihood:' $^ | awk '{printf "%.6f\n", $$3}' >> $@
-
-tree.%.lnl: tree.%.modlnl tree.%.varlnl tree.%.beastlnl tree.%.mrbayeslnl tree.%.raxmllnl 
+tree.%.lnl: tree.%.modlnl tree.%.varlnl tree.%.beastlnl tree.%.mrbayeslnl 
 	cat $^ | awk '{if (true == 0) true = $$2; printf "%s %f\n", $$0, $$2 - true}' > $@
 
 eval.all.lnl.txt: $(LNL)
-	echo -e "ds\tnj\tml\tvine\tbeast\tmrbayes\traxml" > tmp
+	echo -e "ds\tnj\tml\tvine\tbeast\tmrbayes" > tmp
 	for file in $^ ; do \
 		printf "%s\t" `echo $${file} | awk -F\. '{print $$2}'` >> tmp ;\
 		awk '{printf "%s\t", $$2}' $${file} >> tmp ;\
 		echo >> tmp ;\
 	done
-	awk '{x1 += $$2; x2 += $$3; x3 += $$4; x4 += $$5; x5 += $$6; x6 += $$7; print $$0} END {printf ("-----\nave\t%f\t%f\t%f\t%f\t%f\t%f\n", x1/(NR-1), x2/(NR-1), x3/(NR-1), x4/(NR-1), x5/(NR-1), x6/(NR-1))}' tmp > $@
+	awk '{x1 += $$2; x2 += $$3; x3 += $$4; x4 += $$5; x5 += $$6; print $$0} END {printf ("-----\nave\t%f\t%f\t%f\t%f\t%f\n", x1/(NR-1), x2/(NR-1), x3/(NR-1), x4/(NR-1), x5/(NR-1))}' tmp > $@
 	rm tmp
 
 # extract timing info
-tree.%.time: tree.%.beast.term tree.%.var-time tree.%.mrbayes.term tree.%.raxml.term
-	echo -e "ds\tbeast\tvine\tmrbayes\traxml" > $@; \
+tree.%.time: tree.%.beast.term tree.%.var-time tree.%.mrbayes.term
+	echo -e "ds\tbeast\tvine\tmrbayes" > $@; \
 	beast_time=$$(grep '^Total calculation time' tree.$*.beast.term | awk '{print $$4}'); \
 	printf "$*\t%s\t" "$$beast_time" >> $@; \
 	head -1 tree.$*.var-time | awk '{printf "%s\t", $$1}' | sed 's/user//' >> $@; \
 	mrbayes_time=$$(grep 'Analysis used' tree.$*.mrbayes.term | awk '{printf "%s\t", $$(3)}'); \
 	printf "%s\t" "$$mrbayes_time" >> $@; \
-	grep 'Elapsed time:' tree.$*.raxml.term | awk '{printf "%s\n", $$3}' >> $@
 
 eval.all.time.txt: $(TIME)
 	awk 'FNR==1 && NR==1 {print; next} FNR==2 {print; for(i=2;i<=NF;i++) sum[i]+=$$i; n++} END {if(n>0){printf "-----------------------------------------\nall"; for(i=2;i<=NF;i++) printf "\t%.2f", sum[i]/n; printf "\n"}}' $(TIME) > $@
-
-# # evalTrees stuff
-# # (1) modelFit
-# # extract kappa from vine log
-# tree.%.var.mf.txt: tree.%.var.nwk tree.%.heldout.fa tree.%.var.nwk.log
-# 	kappa=`tail -1 tree.$*.var.nwk.log | awk '{print $$19}'` ;\
-# 	$(PHAST_BIN)/evalTrees tree.$*.var.nwk -f tree.$*.heldout.fa -k $$kappa > $@
-
-# # use true kappa
-# tree.%.true.mf.txt: tree.%.true.nwk tree.%.heldout.fa
-# 	$(PHAST_BIN)/evalTrees tree.$*.true.nwk -f tree.$*.heldout.fa -k 4 > $@
-
-# # use ML kappa
-# tree.%.nj.mf.txt: tree.%.nj.nwk tree.%.heldout.fa tree.%.ml.mod
-# 	kappa=`awk '$$1 == "BACKGROUND:" {pi_c = $$3; pi_g = $$4 } $$1<0 {print ($$3/pi_g) / ($$2/pi_c)}' tree.$*.ml.mod` ;\
-# 	$(PHAST_BIN)/evalTrees tree.$*.nj.nwk -f tree.$*.heldout.fa -k $$kappa > $@
-
-# # use ML kappa
-# tree.%.ml.mf.txt: tree.%.ml.nwk tree.%.heldout.fa tree.%.ml.mod
-# 	kappa=`awk '$$1 == "BACKGROUND:" {pi_c = $$3; pi_g = $$4 } $$1<0 {print ($$3/pi_g) / ($$2/pi_c)}' tree.$*.ml.mod` ;\
-# 	$(PHAST_BIN)/evalTrees tree.$*.ml.nwk -f tree.$*.heldout.fa -k $$kappa > $@
-
-# # use posterior mean kappa from beast log
-# tree.%.beast.mf.txt: tree.%.beast.nwk tree.%.heldout.fa tree.%.beast.log
-# 	kappa=`awk '{if (inlog) {sum += $$10; n++} ; if ($$1 == "Sample") inlog=1} END {print sum/n}' tree.$*.beast.log` ;\
-# 	$(PHAST_BIN)/evalTrees tree.$*.beast.nwk -f tree.$*.heldout.fa -k $$kappa > $@
-
-# tree.%.mf: tree.%.true.mf.txt tree.%.nj.mf.txt tree.%.ml.mf.txt tree.%.var.mf.txt tree.%.beast.mf.txt
-# 	rm -f $@
-# 	for file in $^ ; do \
-# 		echo -n "$$file     " >> $@ ;\
-# 		awk '$$1 == "Mean:" {printf "%f\t", $$2} $$1 == "Std:" {printf "%f\n", $$2}' $${file} >> $@ ;\
-# 	done
-
-# # (2) distances
-# tree.%.true.dist.txt: tree.%.true.nwk 
-# 	$(PHAST_BIN)/evalTrees tree.$*.true.nwk > $@
-
-# tree.%.var.dist.txt: tree.%.var.nwk tree.%.true.dist.txt
-# 	$(PHAST_BIN)/evalTrees tree.$*.var.nwk > tmp
-# 	python3 "$(ROOT)/sumDists.py" tmp tree.$*.true.dist.txt | grep -v '^#' > $@
-
-# tree.%.nj.dist.txt: tree.%.nj.nwk  tree.%.true.dist.txt
-# 	$(PHAST_BIN)/evalTrees tree.$*.nj.nwk > tmp
-# 	python3 "$(ROOT)/sumDists.py" tmp tree.$*.true.dist.txt | grep -v '^#' > $@
-
-# tree.%.ml.dist.txt: tree.%.ml.nwk  tree.%.true.dist.txt
-# 	$(PHAST_BIN)/evalTrees tree.$*.ml.nwk > tmp
-# 	python3 "$(ROOT)/sumDists.py" tmp tree.$*.true.dist.txt | grep -v '^#' > $@
-
-# tree.%.beast.dist.txt: tree.%.beast.nwk  tree.%.true.dist.txt
-# 	$(PHAST_BIN)/evalTrees tree.$*.beast.nwk > tmp
-# 	python3 "$(ROOT)/sumDists.py" tmp tree.$*.true.dist.txt | grep -v '^#' > $@
-
-# tree.%.dist: tree.%.ml.dist.txt tree.%.var.dist.txt tree.%.beast.dist.txt
-# 	paste $^ > $@
-
-# eval.all.dist.txt: $(EVALDIST)
-# 	cat $^ | awk '{print $$1, $$2, $$6, $$7, $$8, $$9, $$11, $$12, $$13, $$14}' | awk 'BEGIN {printf "ML_r2 ML_RMSE vine_r2 vine_RMSE vine_95CI vine_50CI beast_r2 beast_RMSE beast_95CI beast_50CI\n"} {x1 += $$1; x2 += $$2; x3 += $$3; x4 += $$4; x5 += $$5; x6 += $$6; x7 += $$7; x8 += $$8; x9 += $$9; x10 += $$10; print $$0} END{printf "-----\n%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", x1/NR, x2/NR, x3/NR, x4/NR, x5/NR, x6/NR, x7/NR, x8/NR, x9/NR, x10/NR}' > $@
-
-# # (3) RF dist
-# tree.%.var.rf.txt: tree.%.var.nwk tree.%.true.nwk
-# 	$(PHAST_BIN)/evalTrees tree.$*.var.nwk -t tree.$*.true.nwk > $@
-
-# tree.%.true.rf.txt: tree.%.true.nwk tree.%.true.nwk
-# 	$(PHAST_BIN)/evalTrees tree.$*.true.nwk -t tree.$*.true.nwk > $@
-
-# tree.%.nj.rf.txt: tree.%.nj.nwk tree.%.true.nwk
-# 	$(PHAST_BIN)/evalTrees tree.$*.nj.nwk -t tree.$*.true.nwk > $@
-
-# tree.%.ml.rf.txt: tree.%.ml.nwk tree.%.true.nwk
-# 	$(PHAST_BIN)/evalTrees tree.$*.ml.nwk -t tree.$*.true.nwk > $@
-
-# tree.%.beast.rf.txt: tree.%.beast.nwk tree.%.true.nwk
-# 	$(PHAST_BIN)/evalTrees tree.$*.beast.nwk -t tree.$*.true.nwk > $@
-
-# tree.%.rf: tree.%.true.rf.txt tree.%.nj.rf.txt tree.%.ml.rf.txt tree.%.var.rf.txt tree.%.beast.rf.txt
-# 	rm -f $@
-# 	for file in $^ ; do \
-# 		echo -n "$$file     " >> $@ ;\
-# 		awk '$$1 == "Mean:" {printf "%f\t", $$2} $$1 == "Std:" {printf "%f\n", $$2}' $${file} >> $@ ;\
-# 	done
-
-# eval.all.rf.txt: $(EVALRF)
-# 	echo "true (sd) nj (sd) ml (sd) vine (sd) beast (sd)" > tmp
-# 	for file in $^ ; do \
-# 		awk '{printf "%s\t%s\t", $$2, $$3}' $${file} >> tmp ;\
-# 		echo >> tmp ;\
-# 	done
-# 	awk '{x1 += $$1; x1s += ($$2 * $$2); x2 += $$3; x2s += ($$4 * $$4); x3 += $$5; x3s += ($$6 * $$6); x4 += $$7; x4s += ($$8 * $$8); x5 += $$9; x5s += ($$10 * $$10); print $$0} END {printf "-----\n%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", x1/(NR-1), sqrt(x1s/(NR-1)), x2/(NR-1), sqrt(x2s/(NR-1)), x3/(NR-1), sqrt(x3s/(NR-1)), x4/(NR-1), sqrt(x4s/(NR-1)), x5/(NR-1), sqrt(x5s/(NR-1))}' tmp > $@
-# 	rm -f tmp
-
-# eval.all.mf.txt: $(EVALMF)
-# 	echo "true (sd) nj (sd) ml (sd) vine (sd) beast (sd)" > tmp
-# 	for file in $^ ; do \
-# 		awk '{printf "%s\t%s\t", $$2, $$3}' $${file} >> tmp ;\
-# 		echo >> tmp ;\
-# 	done
-# 	awk '{x1 += $$1; x1s += ($$2 * $$2); if ($$3 != "nan") x2 += $$3; x2s += ($$4 * $$4); if ($$5 != "nan") x3 += $$5; x3s += ($$6 * $$6); x4 += $$7; x4s += ($$8 * $$8); x5 += $$9; x5s += ($$10 * $$10); print $$0} END {printf "-----\n%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", x1/(NR-1), sqrt(x1s/(NR-1)), x2/(NR-1), sqrt(x2s/(NR-1)), x3/(NR-1), sqrt(x3s/(NR-1)), x4/(NR-1), sqrt(x4s/(NR-1)), x5/(NR-1), sqrt(x5s/(NR-1))}' tmp > $@
-# 	rm -f tmp
-
-# # for use in debugging
-# tracer: $(TRACER)
-
-# tree.%.tr: tree.%.var.nwk.log
-# 	grep -v '^#' $^ > $@
 
 clean:
 	rm tree.*.* eval.all.*

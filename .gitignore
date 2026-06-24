@@ -1,6 +1,15 @@
 # Ignore datasets
 data
 quinn_cps
+*.nwk
+*.term
+*.log
+*.trees
+*.nex
+*.fasta
+*.state
+*.xz
+*subset.tsv
 
 # Ignore build files and binaries
 build
@@ -10,6 +19,7 @@ include
 lib
 __pycache__
 *.spec
+.Rhistory
 
 # Ignore installed dependencies
 mb
@@ -19,6 +29,7 @@ dodonaphy
 geophy
 geophy_test_inputs
 phast
+vine/
 
 # Ignore containers
 *.sif
@@ -30,7 +41,56 @@ quinn.*
 tree.*
 test*
 eval.all*
+updated.all*
+summary.*
+*Summary.*
+*.pdf
+*.time
+*.dist
+vine-*.emb.tsv
+hky-graphs/
 
 # Ignore backup files from text editors
 *~
 
+
+*.old
+.vscode/
+*thinned.trees*
+*regression-test/
+tissue_migration_sims/50taxa/migrationCountsSorted.csv
+debug/
+convenience/
+
+# python analysis scripts in development
+resolve_polytomies.py
+plot_time_barplot.py
+calculate_missing_data_proportion.py
+count_migration_comigrations_seedingsites.py
+plot_f1_boxplot.py
+matrix_to_successive_matrix.py
+
+# mode analysis scripts
+plot_pairwise_dist_mds.R
+plot_mcc_tree_comparison.R
+compute_pairwise_rf.R
+rf_pairwise_log.py
+plot_rf_distance_mds.py
+compare_beast_vine_modes.py
+infer_chain_rf_modes.py
+make_mcc_tree.py
+make_beast_vine_mcc_trees.py
+gao_posteriors/
+mcc_treeannotator.py
+dna_rugged_landscapes/
+
+# pilot runs
+dna_sims/jc69_300sites_pilot_runs/
+dna_sims/hky_300sites_pilot_runs/
+dna_sims/hky_10000sites_pilot_runs/
+
+# grid analyses
+*Grid.sh
+*Grid2.sh
+*gridsummary.txt
+runAltVine.sh
