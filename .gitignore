@@ -10,6 +10,7 @@ quinn_cps
 *.state
 *.xz
 *subset.tsv
+graphs/*-data/
 
 # Ignore build files and binaries
 build

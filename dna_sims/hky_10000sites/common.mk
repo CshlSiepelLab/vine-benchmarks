@@ -14,13 +14,12 @@ PYTHON_SRC := $(MAIN_DIR)/python/src
 BIN := $(MAIN_DIR)/bin
 PHAST_BIN := $(BIN)/phast/bin
 VINE_BIN := $(BIN)/vine/bin
-BEAST := $(BIN)/beast/bin/beast
+BEAST_BIN := $(BIN)/beast/bin
+BEAST := $(BEAST_BIN)/beast
 MRBAYES := $(BIN)/mb
 BEAST_TEMPLATE := $(ROOT)/beast_template.xml
-CONTAINERS := $(MAIN_DIR)/containers
-DODONAPHY_SIF := $(CONTAINERS)/dodonaphy/dodonaphy.sif
-GEOPHY_SIF := $(CONTAINERS)/geophy/geophy.sif
-GEOPHY_CONFIG := $(CONTAINERS)/geophy/default.yaml
+BURNIN_PCT := 10
+METRIC_TREE_COUNT := 1000
 
 TREES := $(shell seq -f tree.%.0f.true.nwk 1 $(NSAMP))
 FA := $(patsubst %.true.nwk,%.fa,$(TREES))
@@ -47,32 +46,43 @@ BEASTTREES := $(patsubst %.true.nwk,%.beast-tree.trees,$(TREES))
 BEASTNWK := $(patsubst %.true.nwk,%.beast.nwk,$(TREES))
 BEASTLNL := $(patsubst %.true.nwk,%.beastlnl,$(TREES))
 BEASTTERM := $(patsubst %.true.nwk,%.beast.term,$(TREES))
+BEASTBEAGLELOG := $(patsubst %.true.nwk,%.beast-beagle.log,$(TREES))
+BEASTBEAGLENWK := $(patsubst %.true.nwk,%.beast-beagle.nwk,$(TREES))
 
 MRBAYESLOG := $(patsubst %.true.nwk,%.mrbayes.nex.p,$(TREES))
+MRBAYESBEAGLELOG := $(patsubst %.true.nwk,%.mrbayes-beagle.nex.p,$(TREES))
+MRBAYESBEAGLENWK := $(patsubst %.true.nwk,%.mrbayes-beagle.nwk,$(TREES))
 
 # evalTrees stuff
 FAHELDOUT := $(patsubst %.true.nwk,%.heldout.fa,$(TREES))
 
+.PHONY: beast-beagle beast-beagle-nwk mrbayes-beagle mrbayes-beagle-nwk clean-mf
+
 all: eval.all.lnl.txt eval.all.rf.txt eval.all.mf.txt eval.all.time.txt eval.all.dist.txt
 
-infer: $(BEASTLOG) $(MRBAYESLOG) $(VAR)
+vine: $(VAR)
+infer: $(BEASTLOG) $(BEASTBEAGLELOG) $(MRBAYESLOG) $(MRBAYESBEAGLELOG) $(VAR)
+beast: $(BEASTLOG)
+beast-beagle: $(BEASTBEAGLELOG)
+mrbayes: $(MRBAYESLOG)
+mrbayes-beagle: $(MRBAYESBEAGLELOG)
 
 tree.%.true.nwk: 
 	$(BIN)/bdTree3 -b 1 -d 0.5 --oversample-k 3 --height 5 --min-edge 0.02 --expected-height $(EXPHEIGHT) --no-stem --ucln-sd 0.6 --target-stat median -n $(NTAXA) | sed 's/\[\&[UR]\] //' > $@
 
 tree.%.fa: tree.%.true.nwk
-	cp ../base-hky.mod tmp.mod
-	echo -n "TREE: " >> tmp.mod
-	cat $< >> tmp.mod
-	$(PHAST_BIN)/base_evolve --nsites $(NSITES) tmp.mod > $@
-	rm tmp.mod
+	cp ../base-hky.mod tree.$*.fa.tmp.mod
+	echo -n "TREE: " >> tree.$*.fa.tmp.mod
+	cat $< >> tree.$*.fa.tmp.mod
+	$(PHAST_BIN)/base_evolve --nsites $(NSITES) tree.$*.fa.tmp.mod > $@
+	rm -f tree.$*.fa.tmp.mod
 
 tree.%.heldout.fa: tree.%.true.nwk
-	cp ../base-hky.mod tmp.mod
-	echo -n "TREE: " >> tmp.mod
-	cat $< >> tmp.mod
-	$(PHAST_BIN)/base_evolve --nsites $(NSITES) tmp.mod > $@
-	rm tmp.mod
+	cp ../base-hky.mod tree.$*.heldout.fa.tmp.mod
+	echo -n "TREE: " >> tree.$*.heldout.fa.tmp.mod
+	cat $< >> tree.$*.heldout.fa.tmp.mod
+	$(PHAST_BIN)/base_evolve --nsites $(NSITES) tree.$*.heldout.fa.tmp.mod > $@
+	rm -f tree.$*.heldout.fa.tmp.mod
 
 tree.%.nj.nwk: tree.%.fa
 	$(VINE_BIN)/vine --nj-only $< > $@
@@ -93,20 +103,33 @@ tree.%.beast.term tree.%.beast-tree.trees tree.%.beast.log: tree.%.beast.xml tre
 	rm -f tree.$*.beast-tree.trees tree.$*.beast.log
 	"$(BEAST)" -java -working -D fastapath=tree.$*.fa -D mcmclength=$(BEAST_MCMCLEN) -D samplefreq=$(BEAST_MCMC_SAMPLEFREQ) -D printfreq=$(MCMC_PRINTFREQ) $< > tree.$*.beast.term
 
-tree.%.beast.nwk: tree.%.beast-tree.trees
-	python3 "$(PYTHON_SRC)/time2subs.py" $^ tmp.nex
-	$(BIN)/convertTrees -i nexus tmp.nex > $@
-	rm -f tmp.nex
+tree.%.beast-beagle.xml:
+	cp "$(BEAST_TEMPLATE)" $@
 
-# Old method - now doing pilot runs to determine mcmc chain length ahead of time
-# # Calculate ESS-based runtime scaling factor for when the chain converged
-# beast_ess_runtime_scale_factor_updatedoperators.txt: $(BEASTLOG)
-# 	$(BIN)/ess_for_dataset_replicates \
-# 		--logfiles "$$(echo $(BEASTLOG) | tr ' ' ',')"  \
-# 		--parameters "Tree.Length,Tree.height" \
-# 		--outputfile $@ \
-# 		--ess_threshold 625 \
-# 		--burnin 0.1
+tree.%.beast-beagle.term tree.%.beast-beagle-tree.trees tree.%.beast-beagle.log: tree.%.beast-beagle.xml tree.%.fa
+	rm -f tree.$*.beast-beagle-tree.trees tree.$*.beast-beagle.log
+	"$(BEAST)" -beagle -working -D fastapath=tree.$*.fa -D mcmclength=$(BEAST_MCMCLEN) -D samplefreq=$(BEAST_MCMC_SAMPLEFREQ) -D printfreq=$(MCMC_PRINTFREQ) $< > tree.$*.beast-beagle.term
+
+tree.%.beast.nwk: tree.%.beast-tree.trees
+	python3 "$(PYTHON_SRC)/time2subs.py" $^ tree.$*.beast.tmp.nex
+	$(BIN)/convertTrees -i nexus tree.$*.beast.tmp.nex > $@
+	rm -f tree.$*.beast.tmp.nex
+
+tree.%.beast-beagle.nwk: tree.%.beast-beagle-tree.trees
+	THIN=$$(( ($(BEAST_MCMCLEN) / $(BEAST_MCMC_SAMPLEFREQ)) * (100 - $(BURNIN_PCT)) / 100 / $(METRIC_TREE_COUNT) )); \
+	if [ "$$THIN" -lt 1 ]; then THIN=1; fi; \
+	RESAMPLE=$$(( $(BEAST_MCMC_SAMPLEFREQ) * THIN )); \
+	$(BEAST_BIN)/logcombiner -log $^ -o thinned.trees.$*.beast-beagle \
+	  -burnin $(BURNIN_PCT) -resample $$RESAMPLE
+	python3 "$(PYTHON_SRC)/time2subs.py" thinned.trees.$*.beast-beagle tree.$*.beast-beagle.tmp.nex
+	$(BIN)/convertTrees -i nexus tree.$*.beast-beagle.tmp.nex > tree.$*.beast-beagle.tmp.nwk
+	N=$$(awk 'NF{n++} END{print n}' tree.$*.beast-beagle.tmp.nwk); \
+	TARGET=$(METRIC_TREE_COUNT); \
+	if [ "$$N" -lt "$$TARGET" ]; then TARGET=$$N; fi; \
+	awk -v n="$$N" -v target="$$TARGET" \
+	  'NF{j++; if (int(j*target/n) > int((j-1)*target/n)) print}' \
+	  tree.$*.beast-beagle.tmp.nwk > $@
+	rm -f tree.$*.beast-beagle.tmp.nex tree.$*.beast-beagle.tmp.nwk
 
 tree.%.nex: tree.%.fa
 	$(BIN)/fa2nex $< $@
@@ -116,24 +139,55 @@ tree.%.mrbayes.nex: tree.%.nex
 	$(BIN)/addMrbayesModelToNex --in_nexus tree.$*.nex --out_nexus tree.$*.mrbayes.nex --mcmc_length $(MRBAYES_MCMCLEN) --model HKY \
 		--sample_freq $(MRBAYES_MCMC_SAMPLEFREQ) --print_freq $(MCMC_PRINTFREQ) --diagn_freq $(MCMC_PRINTFREQ)
 
+tree.%.mrbayes-beagle.nex: tree.%.nex
+	$(BIN)/addMrbayesModelToNex --in_nexus tree.$*.nex --out_nexus tree.$*.mrbayes-beagle.nex --mcmc_length $(MRBAYES_MCMCLEN) --model HKY \
+		--sample_freq $(MRBAYES_MCMC_SAMPLEFREQ) --print_freq $(MCMC_PRINTFREQ) --diagn_freq $(MCMC_PRINTFREQ) --use_beagle
+
 # Run MrBayes
 tree.%.mrbayes.term tree.%.mrbayes.nex.p tree.%.mrbayes.nex.t: tree.%.mrbayes.nex
 	$(MRBAYES) tree.$*.mrbayes.nex > tree.$*.mrbayes.term
 
+tree.%.mrbayes-beagle.term tree.%.mrbayes-beagle.nex.p tree.%.mrbayes-beagle.nex.t: tree.%.mrbayes-beagle.nex
+	$(MRBAYES) tree.$*.mrbayes-beagle.nex > tree.$*.mrbayes-beagle.term
+
 # Get mrbayes tree in nexus format
 tree.%.mrbayes.nwk: tree.%.mrbayes.nex.t
-	$(BIN)/convertTrees -i nexus $< \
-		| sed 's/^\[&[^]]*\]\s*//' > $@
+	SKIP=$$(awk -v p=$(BURNIN_PCT) \
+	  '/^[[:space:]]*tree[[:space:]]+/{c++} END{printf "%d", int(c*p/100)}' $<); \
+	N=$$(awk '/^[[:space:]]*tree[[:space:]]+/{c++} END{print c}' $<); \
+	REMAINING=$$(( N - SKIP )); \
+	TARGET=$(METRIC_TREE_COUNT); \
+	if [ "$$REMAINING" -lt "$$TARGET" ]; then TARGET=$$REMAINING; fi; \
+	awk -v skip="$$SKIP" -v remaining="$$REMAINING" -v target="$$TARGET" '\
+	  /^[[:space:]]*tree[[:space:]]+/{ \
+	    if (++c <= skip) next; \
+	    j = c - skip; \
+	    if (int(j*target/remaining) == int((j-1)*target/remaining)) next \
+	  } \
+	  1' \
+	  $< > tree.$*.mrbayes.thinned.t
+	$(BIN)/convertTrees -i nexus tree.$*.mrbayes.thinned.t \
+	  | sed 's/^\[&[^]]*\]\s*//' > $@
+	rm -f tree.$*.mrbayes.thinned.t
 
-# # Old method - now doing pilot runs to determine mcmc chain length ahead of time
-# # Calculate ESS-based runtime scaling factor for when the chain converged
-# mrbayes_ess_runtime_scale_factor.txt: $(MRBAYESLOG)
-# 	$(BIN)/ess_for_dataset_replicates \
-# 		--logfiles "$$(echo $(MRBAYESLOG) | tr ' ' ',')"  \
-# 		--parameters "TL" \
-# 		--outputfile $@ \
-# 		--ess_threshold 625 \
-# 		--burnin 0.1
+tree.%.mrbayes-beagle.nwk: tree.%.mrbayes-beagle.nex.t
+	SKIP=$$(awk -v p=$(BURNIN_PCT) \
+	  '/^[[:space:]]*tree[[:space:]]+/{c++} END{printf "%d", int(c*p/100)}' $<); \
+	N=$$(awk '/^[[:space:]]*tree[[:space:]]+/{c++} END{print c}' $<); \
+	REMAINING=$$(( N - SKIP )); \
+	TARGET=$(METRIC_TREE_COUNT); \
+	if [ "$$REMAINING" -lt "$$TARGET" ]; then TARGET=$$REMAINING; fi; \
+	awk -v skip="$$SKIP" -v remaining="$$REMAINING" -v target="$$TARGET" '\
+	  /^[[:space:]]*tree[[:space:]]+/{ \
+	    if (++c <= skip) next; \
+	    j = c - skip; \
+	    if (int(j*target/remaining) == int((j-1)*target/remaining)) next \
+	  } \
+	  1' \
+	  $< > tree.$*.mrbayes-beagle.thinned.t
+	$(BIN)/convertTrees -i nexus tree.$*.mrbayes-beagle.thinned.t \
+	  | sed 's/^\[&[^]]*\]\s*//' > $@
+	rm -f tree.$*.mrbayes-beagle.thinned.t
 
 # Run raxml
 tree.%.raxml.term: tree.%.fa
@@ -142,67 +196,20 @@ tree.%.raxml.term: tree.%.fa
 	$(BIN)/raxml-ng --msa tree.$*.raxml.fa --model HKY+F --prefix tree.$* --search1 --threads 1 > tree.$*.raxml.term
 	rm -f tree.$*.raxml.fa
 
-# Get NJ tree in nexus format
-tree.%.nj.nex: tree.%.nj.nwk
-	$(BIN)/nwk2nex $< $@
-
-# Run dodonaphy
-tree.%.dodonaphy.term tree.%.dodonaphy.elbo.txt tree.%.dodonaphy-time: tree.%.nex tree.%.nj.nex
-	mkdir tree.$*.dodonaphy
-	cp $< tree.$*.dodonaphy/tree.$*.nex
-	singularity exec --bind $(CURDIR):/mnt $(DODONAPHY_SIF) \
-		env OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
-		/usr/bin/time -o /mnt/tree.$*.dodonaphy-time \
-		dodo \
-		--path_root /mnt/tree.$*.dodonaphy \
-		--path_dna /mnt/tree.$*.nex  \
-		--start /mnt/tree.$*.nj.nex \
-		--infer vi \
-		--model JC69 \
-		--embed up \
-		--temp 0.00001 \
-		--prior exponential \
-		--connect nj \
-		--boosts 3 \
-		--importance 3 \
-		--curv -100 \
-		--learn 0.1 \
-		--epochs 2000 \
-		--draws 1000 \
-		--overwrite > tree.$*.dodonaphy.term
-	rm -f tree.$*.dodonaphy/tree.$*.nex
-	find ./tree.$*.dodonaphy/ -type f -exec bash -c 'for file; do mv "$$file" ./tree.$*.dodonaphy.$$(basename "$$file"); done' _ {} +
-	rm -rf tree.$*.dodonaphy
-
-
-# Run GeoPhy
-tree.%.geophy.term tree.%.geophy-time tree.%.geophy.eval.latest.txt: tree.%.nex
-	cp $< tree.$*.geophy.nex
-	cp $(GEOPHY_CONFIG) tree.$*.geophy.config.yaml
-	/usr/bin/time -o tree.$*.geophy-time \
-		singularity exec \
-		--bind $(CURDIR):/mnt \
-		$(GEOPHY_SIF) \
-		bash /opt/app/scripts/run_geophy.sh \
-		  -i /mnt/tree.$*.geophy.nex \
-		  -o /mnt/tree.$*.geophy \
-		  -c /mnt/tree.$*.geophy.config.yaml > tree.$*.geophy.term
-	rm -f tree.$*.geophy.nex
-
 # extract training likelihoods
 tree.%.true.mod: tree.%.true.nwk tree.%.fa
-	cp ../base-hky.mod tmp.mod
-	echo -n "TREE: " >> tmp.mod
-	cat $< >> tmp.mod
-	$(PHAST_BIN)/phyloFit --lnl --init-model tmp.mod -o tree.$*.true tree.$*.fa
-	rm tmp.mod
+	cp ../base-hky.mod tree.$*.true.tmp.mod
+	echo -n "TREE: " >> tree.$*.true.tmp.mod
+	cat $< >> tree.$*.true.tmp.mod
+	$(PHAST_BIN)/phyloFit --lnl --init-model tree.$*.true.tmp.mod -o tree.$*.true tree.$*.fa
+	rm -f tree.$*.true.tmp.mod
 
 tree.%.nj.mod: tree.%.nj.nwk tree.%.fa
-	cp ../base-hky.mod tmp.mod
-	echo -n "TREE: " >> tmp.mod
-	cat $< >> tmp.mod
-	$(PHAST_BIN)/phyloFit --lnl --init-model tmp.mod -o tree.$*.nj tree.$*.fa
-	rm tmp.mod
+	cp ../base-hky.mod tree.$*.nj.tmp.mod
+	echo -n "TREE: " >> tree.$*.nj.tmp.mod
+	cat $< >> tree.$*.nj.tmp.mod
+	$(PHAST_BIN)/phyloFit --lnl --init-model tree.$*.nj.tmp.mod -o tree.$*.nj tree.$*.fa
+	rm -f tree.$*.nj.tmp.mod
 
 tree.%.modlnl: tree.%.true.mod tree.%.nj.mod tree.%.ml.mod 
 	rm -f $@
@@ -219,7 +226,15 @@ tree.%.beastlnl: tree.%.beast.log
 	echo -n "$^ " > $@
 	grep -v '^#' $^ | grep -v '^Sample' | awk '{print $$3}' | sort -nr | head -1 >> $@
 
+tree.%.beast-beaglelnl: tree.%.beast-beagle.log
+	echo -n "$^ " > $@
+	grep -v '^#' $^ | grep -v '^Sample' | awk '{print $$3}' | sort -nr | head -1 >> $@
+
 tree.%.mrbayeslnl: tree.%.mrbayes.nex.p tree.%.mrbayes.term
+	echo -n "$< " > $@
+	grep -v '^\[' $< | grep -v '^Gen' | awk '{print $$2}' | sort -gr | head -1 | awk '{printf "%.6f\n", $$1}' >> $@
+
+tree.%.mrbayes-beaglelnl: tree.%.mrbayes-beagle.nex.p tree.%.mrbayes-beagle.term
 	echo -n "$< " > $@
 	grep -v '^\[' $< | grep -v '^Gen' | awk '{print $$2}' | sort -gr | head -1 | awk '{printf "%.6f\n", $$1}' >> $@
 
@@ -227,27 +242,17 @@ tree.%.raxmllnl: tree.%.raxml.term
 	echo -n "$^ " > $@
 	grep 'Final LogLikelihood:' $^ | awk '{printf "%.6f\n", $$3}' >> $@
 
-tree.%.dodonaphylnl: tree.%.dodonaphy.elbo.txt
-	echo -n "$^ " > $@
-	awk 'NR==1 || $$1>max {max=$$1} END {printf "%.6f\n", max}' $^ >> $@
-
-tree.%.geophylnl: tree.%.geophy.eval.latest.txt
-	echo -n "$^ " > $@
-	awk 'NR==2 {printf "%.6f\n", $$6}' $^ >> $@
-
-#tree.%.lnl: tree.%.modlnl tree.%.varlnl tree.%.beastlnl tree.%.mrbayeslnl tree.%.raxmllnl tree.%.dodonaphylnl tree.%.geophylnl
-tree.%.lnl: tree.%.modlnl tree.%.varlnl tree.%.beastlnl tree.%.mrbayeslnl tree.%.raxmllnl 
+tree.%.lnl: tree.%.modlnl tree.%.varlnl tree.%.beastlnl tree.%.beast-beaglelnl tree.%.mrbayeslnl tree.%.mrbayes-beaglelnl tree.%.raxmllnl
 	cat $^ | awk '{if (true == 0) true = $$2; printf "%s %f\n", $$0, $$2 - true}' > $@
 
 eval.all.lnl.txt: $(LNL)
-	#echo -e "true\tnj\tml\tvine\tbeast\tmrbayes\traxml\tdodonaphy\tgeophy" > tmp
-	echo -e "true\tnj\tml\tvine\tbeast\tmrbayes\traxml" > tmp
+	echo -e "true\tnj\tml\tvine\tbeast\tbeast-beagle\tmrbayes\tmrbayes-beagle\traxml" > $@.tmp
 	for file in $^ ; do \
-		awk '{printf "%s\t", $$2}' $${file} >> tmp ;\
-		echo >> tmp ;\
+		awk '{printf "%s\t", $$2}' $${file} >> $@.tmp ;\
+		echo >> $@.tmp ;\
 	done
-	awk '{x1 += $$1; x2 += $$2; x3 += $$3; x4 += $$4; x5 += $$5; x6 += $$6; x7 += $$7; x8 += $$8; x9 += $$9; print $$0} END {printf ("-----\n%f\t%f\t%f\t%f\t%f\t%f\t%f\n", x1/(NR-1), x2/(NR-1), x3/(NR-1), x4/(NR-1), x5/(NR-1), x6/(NR-1), x7/(NR-1)) }' tmp > $@
-	rm tmp
+	awk '{for(i=1;i<=NF;i++) x[i]+=$$i; print $$0} END {printf "-----\n"; for(i=1;i<=9;i++) printf "%f%s", x[i]/(NR-1), (i<9 ? "\t" : "\n")}' $@.tmp > $@
+	rm -f $@.tmp
 
 # Create a version where each row's values are offset by its true value
 updated.all.lnl.txt: eval.all.lnl.txt
@@ -257,28 +262,18 @@ updated.all.lnl.txt: eval.all.lnl.txt
 
 
 ## extract timing info
-#tree.%.time: tree.%.beast.term tree.%.var-time tree.%.mrbayes.term tree.%.raxml.term tree.%.dodonaphy-time tree.%.geophy-time
-tree.%.time: tree.%.beast.term tree.%.var-time tree.%.mrbayes.term tree.%.raxml.term # beast_ess_runtime_scale_factor.txt mrbayes_ess_runtime_scale_factor.txt
-	echo -e "samp\tbeast\tmrbayes\tvine\traxml" > $@; \
+tree.%.time: tree.%.beast.term tree.%.beast-beagle.term tree.%.var-time tree.%.mrbayes.term tree.%.mrbayes-beagle.term tree.%.raxml.term
+	echo -e "samp\tbeast\tbeast-beagle\tmrbayes\tmrbayes-beagle\tvine\traxml" > $@; \
 	beast_time=$$(grep '^Total calculation time' tree.$*.beast.term | awk '{print $$4}'); \
 	printf "$*\t%s\t" "$$beast_time" >> $@; \
-	mrbayes_time=$$(grep 'Analysis used' tree.$*.mrbayes.term | awk '{printf "%s\t", $$(3)}'); \
+	beast_beagle_time=$$(grep '^Total calculation time' tree.$*.beast-beagle.term | awk '{print $$4}'); \
+	printf "%s\t" "$$beast_beagle_time" >> $@; \
+	mrbayes_time=$$(grep 'Analysis used' tree.$*.mrbayes.term | awk '{printf "%s\t", $$3}'); \
 	printf "%s\t" "$$mrbayes_time" >> $@; \
+	mrbayes_beagle_time=$$(grep 'Analysis used' tree.$*.mrbayes-beagle.term | awk '{printf "%s\t", $$3}'); \
+	printf "%s\t" "$$mrbayes_beagle_time" >> $@; \
 	head -1 tree.$*.var-time | awk '{printf "%s\t", $$1}' | sed 's/user//' >> $@; \
 	grep 'Elapsed time:' tree.$*.raxml.term | awk '{printf "%s\n", $$3}' >> $@
-#	head -1 tree.$*.dodonaphy-time | awk '{printf "%s\t", $$1}' | sed 's/user//' >> $@
-#	head -1 tree.$*.geophy-time | awk '{printf "%s\n", $$1}' | sed 's/user//' >> $@
-
-# Old method - now doing pilot runs to determine mcmc chain length ahead of time
-# @beast_scale_factor=$$(cat beast_ess_runtime_scale_factor.txt); \
-# mrbayes_scale_factor=$$(cat mrbayes_ess_runtime_scale_factor.txt); \
-# echo -e "samp\tbeast\tmrbayes\tvine\traxml" > $@; \
-# beast_time=$$(grep '^Total calculation time' tree.$*.beast.term | awk '{print $$4}'); \
-# scaled_beast_time=$$(awk -v t="$$beast_time" -v s="$$beast_scale_factor" 'BEGIN{printf "%f", t*s}'); \
-# printf "$*\t%s\t" "$$scaled_beast_time" >> $@; \
-# mrbayes_time=$$(grep 'Analysis used' tree.$*.mrbayes.term | awk '{printf "%s\t", $$(3)}'); \
-# scaled_mrbayes_time=$$(awk -v t="$$mrbayes_time" -v s="$$mrbayes_scale_factor" 'BEGIN{printf "%f", t*s}'); \
-# printf "%s\t" "$$scaled_mrbayes_time" >> $@; \
 
 
 eval.all.time.txt: $(TIME)
@@ -288,14 +283,9 @@ eval.all.time.txt: $(TIME)
 # (1) modelFit
 # extract kappa from vine log
 tree.%.var.mf.txt: tree.%.var.nwk tree.%.heldout.fa tree.%.var.nwk.log
-	kappa=`awk '\
-	/ kappa: / {\
-	  for(i=1;i<=NF;i++) if($$i=="kappa:"){k=$$(i+1); gsub(/,/, "", k)}\
-	}\
-	$$1 ~ /^[0-9]+$$/ {last=$$NF}\
-	END {if(k!="") print k; else print last}\
-	' tree.$*.var.nwk.log` ;\
-	$(VINE_BIN)/evalTrees tree.$*.var.nwk -f tree.$*.heldout.fa -k $$kappa > $@
+	kappa=$$(awk '{for (i=1; i<=NF; i++) if ($$i == "kappa:") kappa=$$(i+1)} END {print kappa}' tree.$*.var.nwk.log); \
+	$(VINE_BIN)/evalTrees tree.$*.var.nwk -f tree.$*.heldout.fa \
+	  -k "$$kappa" > $@.tmp && mv $@.tmp $@
 
 # use true kappa
 tree.%.true.mf.txt: tree.%.true.nwk tree.%.heldout.fa
@@ -316,21 +306,44 @@ tree.%.beast.mf.txt: tree.%.beast.nwk tree.%.heldout.fa tree.%.beast.log
 	kappa=`awk '{if (inlog) {sum += $$10; n++} ; if ($$1 == "Sample") inlog=1} END {print sum/n}' tree.$*.beast.log` ;\
 	$(VINE_BIN)/evalTrees tree.$*.beast.nwk -f tree.$*.heldout.fa -k $$kappa > $@
 
-# need to get kappa from mrbayes log
+tree.%.beast-beagle.mf.txt: tree.%.beast-beagle.nwk tree.%.heldout.fa tree.%.beast-beagle.log
+	kappa=`awk '{if (inlog) {sum += $$10; n++} ; if ($$1 == "Sample") inlog=1} END {print sum/n}' tree.$*.beast-beagle.log` ;\
+	$(VINE_BIN)/evalTrees tree.$*.beast-beagle.nwk -f tree.$*.heldout.fa -k $$kappa > $@
+
+# Use the post-burn-in posterior mean kappa for both MrBayes modes.
 tree.%.mrbayes.mf.txt: tree.%.mrbayes.nwk tree.%.heldout.fa \
                        tree.%.mrbayes.nex.p
 	kappa=`awk '\
 	  $$1=="Gen"{\
 	    for(i=1;i<=NF;i++) if($$i=="kappa") c=i; next\
 	  }\
-	  $$1!="Gen" && c { s+=$$c; n++ }\
-	  END { if(n) printf "%.6f\\n", s/n }\
+	  $$1!="Gen" && c { values[++n]=$$c }\
+	  END {\
+	    first=int(n*$(BURNIN_PCT)/100)+1;\
+	    for(i=first;i<=n;i++) { s+=values[i]; kept++ }\
+	    if(kept) printf "%.6f\\n", s/kept\
+	  }\
 	' tree.$*.mrbayes.nex.p` ;\
 	$(VINE_BIN)/evalTrees tree.$*.mrbayes.nwk -f tree.$*.heldout.fa \
 	  -k $$kappa > $@
 
+tree.%.mrbayes-beagle.mf.txt: tree.%.mrbayes-beagle.nwk tree.%.heldout.fa \
+                              tree.%.mrbayes-beagle.nex.p
+	kappa=`awk '\
+	  $$1=="Gen"{\
+	    for(i=1;i<=NF;i++) if($$i=="kappa") c=i; next\
+	  }\
+	  $$1!="Gen" && c { values[++n]=$$c }\
+	  END {\
+	    first=int(n*$(BURNIN_PCT)/100)+1;\
+	    for(i=first;i<=n;i++) { s+=values[i]; kept++ }\
+	    if(kept) printf "%.6f\\n", s/kept\
+	  }\
+	' tree.$*.mrbayes-beagle.nex.p` ;\
+	$(VINE_BIN)/evalTrees tree.$*.mrbayes-beagle.nwk -f tree.$*.heldout.fa \
+	  -k $$kappa > $@
 
-tree.%.mf: tree.%.true.mf.txt tree.%.nj.mf.txt tree.%.ml.mf.txt tree.%.var.mf.txt tree.%.beast.mf.txt tree.%.mrbayes.mf.txt
+tree.%.mf: tree.%.true.mf.txt tree.%.nj.mf.txt tree.%.ml.mf.txt tree.%.var.mf.txt tree.%.beast.mf.txt tree.%.beast-beagle.mf.txt tree.%.mrbayes.mf.txt tree.%.mrbayes-beagle.mf.txt
 	rm -f $@
 	for file in $^ ; do \
 		echo -n "$$file     " >> $@ ;\
@@ -342,26 +355,35 @@ tree.%.true.dist.txt: tree.%.true.nwk
 	$(VINE_BIN)/evalTrees tree.$*.true.nwk > $@
 
 tree.%.var.dist.txt: tree.%.var.nwk tree.%.true.dist.txt
-	$(VINE_BIN)/evalTrees tree.$*.var.nwk > tmp
-	python3 "$(PYTHON_SRC)/sumDists.py" tmp tree.$*.true.dist.txt | grep -v '^#' > $@
+	$(VINE_BIN)/evalTrees tree.$*.var.nwk > $@.tmp
+	python3 "$(PYTHON_SRC)/sumDists.py" $@.tmp tree.$*.true.dist.txt | grep -v '^#' > $@
+	rm -f $@.tmp
 
 tree.%.nj.dist.txt: tree.%.nj.nwk  tree.%.true.dist.txt
-	$(VINE_BIN)/evalTrees tree.$*.nj.nwk > tmp
-	python3 "$(PYTHON_SRC)/sumDists.py" tmp tree.$*.true.dist.txt | grep -v '^#' > $@
+	$(VINE_BIN)/evalTrees tree.$*.nj.nwk > $@.tmp
+	python3 "$(PYTHON_SRC)/sumDists.py" $@.tmp tree.$*.true.dist.txt | grep -v '^#' > $@
+	rm -f $@.tmp
 
 tree.%.ml.dist.txt: tree.%.ml.nwk  tree.%.true.dist.txt
-	$(VINE_BIN)/evalTrees tree.$*.ml.nwk > tmp
-	python3 "$(PYTHON_SRC)/sumDists.py" tmp tree.$*.true.dist.txt | grep -v '^#' > $@
+	$(VINE_BIN)/evalTrees tree.$*.ml.nwk > $@.tmp
+	python3 "$(PYTHON_SRC)/sumDists.py" $@.tmp tree.$*.true.dist.txt | grep -v '^#' > $@
+	rm -f $@.tmp
 
 tree.%.beast.dist.txt: tree.%.beast.nwk  tree.%.true.dist.txt
-	$(VINE_BIN)/evalTrees tree.$*.beast.nwk > tmp
-	python3 "$(PYTHON_SRC)/sumDists.py" tmp tree.$*.true.dist.txt | grep -v '^#' > $@
+	$(VINE_BIN)/evalTrees tree.$*.beast.nwk > $@.tmp
+	python3 "$(PYTHON_SRC)/sumDists.py" $@.tmp tree.$*.true.dist.txt | grep -v '^#' > $@
+	rm -f $@.tmp
 
-tree.%.dist: tree.%.ml.dist.txt tree.%.var.dist.txt tree.%.beast.dist.txt
+tree.%.beast-beagle.dist.txt: tree.%.beast-beagle.nwk tree.%.true.dist.txt
+	$(VINE_BIN)/evalTrees tree.$*.beast-beagle.nwk > $@.tmp
+	python3 "$(PYTHON_SRC)/sumDists.py" $@.tmp tree.$*.true.dist.txt | grep -v '^#' > $@
+	rm -f $@.tmp
+
+tree.%.dist: tree.%.ml.dist.txt tree.%.var.dist.txt tree.%.beast.dist.txt tree.%.beast-beagle.dist.txt
 	paste $^ > $@
 
 eval.all.dist.txt: $(EVALDIST)
-	cat $^ | awk '{print $$1, $$2, $$6, $$7, $$8, $$9, $$11, $$12, $$13, $$14}' | awk 'BEGIN {printf "ML_r2 ML_RMSE vine_r2 vine_RMSE vine_95CI vine_50CI beast_r2 beast_RMSE beast_95CI beast_50CI\n"} {x1 += $$1; x2 += $$2; x3 += $$3; x4 += $$4; x5 += $$5; x6 += $$6; x7 += $$7; x8 += $$8; x9 += $$9; x10 += $$10; print $$0} END{printf "-----\n%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", x1/NR, x2/NR, x3/NR, x4/NR, x5/NR, x6/NR, x7/NR, x8/NR, x9/NR, x10/NR}' > $@
+	cat $^ | awk '{print $$1, $$2, $$6, $$7, $$8, $$9, $$11, $$12, $$13, $$14, $$16, $$17, $$18, $$19}' | awk 'BEGIN {printf "ML_r2 ML_RMSE vine_r2 vine_RMSE vine_95CI vine_50CI beast_r2 beast_RMSE beast_95CI beast_50CI beast-beagle_r2 beast-beagle_RMSE beast-beagle_95CI beast-beagle_50CI\n"} {for(i=1;i<=NF;i++) x[i]+=$$i; print $$0} END{printf "-----\n"; for(i=1;i<=14;i++) printf "%f%s", x[i]/NR, (i<14 ? "\t" : "\n")}' > $@
 
 # (3) RF dist
 tree.%.var.rf.txt: tree.%.var.nwk tree.%.true.nwk
@@ -379,7 +401,16 @@ tree.%.ml.rf.txt: tree.%.ml.nwk tree.%.true.nwk
 tree.%.beast.rf.txt: tree.%.beast.nwk tree.%.true.nwk
 	$(VINE_BIN)/evalTrees tree.$*.beast.nwk -t tree.$*.true.nwk > $@
 
-tree.%.rf: tree.%.true.rf.txt tree.%.nj.rf.txt tree.%.ml.rf.txt tree.%.var.rf.txt tree.%.beast.rf.txt
+tree.%.beast-beagle.rf.txt: tree.%.beast-beagle.nwk tree.%.true.nwk
+	$(VINE_BIN)/evalTrees tree.$*.beast-beagle.nwk -t tree.$*.true.nwk > $@
+
+tree.%.mrbayes.rf.txt: tree.%.mrbayes.nwk tree.%.true.nwk
+	$(VINE_BIN)/evalTrees tree.$*.mrbayes.nwk -t tree.$*.true.nwk > $@
+
+tree.%.mrbayes-beagle.rf.txt: tree.%.mrbayes-beagle.nwk tree.%.true.nwk
+	$(VINE_BIN)/evalTrees tree.$*.mrbayes-beagle.nwk -t tree.$*.true.nwk > $@
+
+tree.%.rf: tree.%.true.rf.txt tree.%.nj.rf.txt tree.%.ml.rf.txt tree.%.var.rf.txt tree.%.beast.rf.txt tree.%.beast-beagle.rf.txt tree.%.mrbayes.rf.txt tree.%.mrbayes-beagle.rf.txt
 	rm -f $@
 	for file in $^ ; do \
 		echo -n "$$file     " >> $@ ;\
@@ -387,22 +418,22 @@ tree.%.rf: tree.%.true.rf.txt tree.%.nj.rf.txt tree.%.ml.rf.txt tree.%.var.rf.tx
 	done
 
 eval.all.rf.txt: $(EVALRF)
-	echo "true (sd) nj (sd) ml (sd) vine (sd) beast (sd)" > tmp
+	echo "true (sd) nj (sd) ml (sd) vine (sd) beast (sd) beast-beagle (sd) mrbayes (sd) mrbayes-beagle (sd)" > $@.tmp
 	for file in $^ ; do \
-		awk '{printf "%s\t%s\t", $$2, $$3}' $${file} >> tmp ;\
-		echo >> tmp ;\
+		awk '{printf "%s\t%s\t", $$2, $$3}' $${file} >> $@.tmp ;\
+		echo >> $@.tmp ;\
 	done
-	awk '{x1 += $$1; x1s += ($$2 * $$2); x2 += $$3; x2s += ($$4 * $$4); x3 += $$5; x3s += ($$6 * $$6); x4 += $$7; x4s += ($$8 * $$8); x5 += $$9; x5s += ($$10 * $$10); print $$0} END {printf "-----\n%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", x1/(NR-1), sqrt(x1s/(NR-1)), x2/(NR-1), sqrt(x2s/(NR-1)), x3/(NR-1), sqrt(x3s/(NR-1)), x4/(NR-1), sqrt(x4s/(NR-1)), x5/(NR-1), sqrt(x5s/(NR-1))}' tmp > $@
-	rm -f tmp
+	awk '{for(i=1;i<=NF;i+=2){x[i]+=$$i; xs[i]+=($$(i+1)*$$(i+1))} print $$0} END {printf "-----\n"; for(i=1;i<=15;i+=2) printf "%f\t%f%s", x[i]/(NR-1), sqrt(xs[i]/(NR-1)), (i<15 ? "\t" : "\n")}' $@.tmp > $@
+	rm -f $@.tmp
 
 eval.all.mf.txt: $(EVALMF)
-	echo "true (sd) nj (sd) ml (sd) vine (sd) beast (sd) mrbayes (sd)" > tmp
+	echo "true (sd) nj (sd) ml (sd) vine (sd) beast (sd) beast-beagle (sd) mrbayes (sd) mrbayes-beagle (sd)" > $@.tmp
 	for file in $^ ; do \
-		awk '{printf "%s\t%s\t", $$2, $$3}' $${file} >> tmp ;\
-		echo >> tmp ;\
+		awk '{printf "%s\t%s\t", $$2, $$3}' $${file} >> $@.tmp ;\
+		echo >> $@.tmp ;\
 	done
-	awk '{x1 += $$1; x1s += ($$2 * $$2); if ($$3 != "nan") x2 += $$3; x2s += ($$4 * $$4); if ($$5 != "nan") x3 += $$5; x3s += ($$6 * $$6); x4 += $$7; x4s += ($$8 * $$8); x5 += $$9; x5s += ($$10 * $$10); if ($$11 != "nan") x6 += $$11; x6s += ($$12 * $$12); print $$0} END {printf "-----\n%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", x1/(NR-1), sqrt(x1s/(NR-1)), x2/(NR-1), sqrt(x2s/(NR-1)), x3/(NR-1), sqrt(x3s/(NR-1)), x4/(NR-1), sqrt(x4s/(NR-1)), x5/(NR-1), sqrt(x5s/(NR-1)), x6/(NR-1), sqrt(x6s/(NR-1))}' tmp > $@
-	rm -f tmp
+	awk '{for(i=1;i<=NF;i+=2){if($$i!="nan") x[i]+=$$i; xs[i]+=($$(i+1)*$$(i+1))} print $$0} END {printf "-----\n"; for(i=1;i<=15;i+=2) printf "%f\t%f%s", x[i]/(NR-1), sqrt(xs[i]/(NR-1)), (i<15 ? "\t" : "\n")}' $@.tmp > $@
+	rm -f $@.tmp
 
 # for use in debugging
 tracer: $(TRACER)
@@ -414,11 +445,22 @@ clean:
 	rm -rf $(TREES) $(FA) $(MOD) $(ML) $(MLMOD) $(NJMOD) $(NJ) $(VAR) $(VARNEX) $(EVALURF) $(LNL) $(VARLOG) $(VARTIME) tree.*.mean*.nwk tree.*.lnl.diffs tree.*.varlnl tree.*.modlnl eval.all.*.txt tree.*.beast* *.mf.txt *.rf.txt *.dist.txt  tree.*.time tree.*.lnl tree.*.mf tree.*.rf $(FAHELDOUT) $(TRACER)
 	rm -rf tree.*.mrbayes* tree.*.nex
 	rm -rf tree.*.raxml*
-	rm -rf tree.*.dodonaphy*
-	rm -rf tree.*.geophy*
 
 clean_mcmc:
 	rm -rf tree.*.beast* tree.*.mrbayes* beast_ess* mrbayes_ess* eval.all.*
+
+# Remove only derived MrBayes model-fit outputs. Preserve the expensive
+# .nex.p and .nex.t inference results so `make eval.all.mf.txt` can reuse them.
+clean-mf:
+	rm -f tree.*.mrbayes.nwk tree.*.mrbayes-beagle.nwk
+	rm -f tree.*.mrbayes.mf.txt tree.*.mrbayes-beagle.mf.txt
+	rm -f tree.*.mf eval.all.mf.txt
+
+clean-beast-beagle:
+	rm -rf tree.*.beast-beagle* thinned.trees.*.beast-beagle tree.*.dist tree.*.time tree.*.lnl tree.*.mf tree.*.rf eval.all.*.txt
+
+clean-mrbayes-beagle:
+	rm -rf tree.*.mrbayes-beagle* tree.*.dist tree.*.time tree.*.lnl tree.*.mf tree.*.rf eval.all.*.txt
 
 clean_vine:
 	rm -rf tree.*.var* eval.all.*.txt tree.*.mf tree.*.rf tree.*.dist tree.*.lnl

@@ -6,6 +6,18 @@ use_relative_lnl <- "--relative" %in% args
 suppressMessages(library(ggplot2))
 suppressMessages(library(scales))
 
+args_all <- commandArgs(trailingOnly = FALSE)
+file_arg <- sub("^--file=", "", args_all[grep("^--file=", args_all)])
+script_dir <- if (length(file_arg) > 0) {
+  dirname(normalizePath(file_arg))
+} else {
+  getwd()
+}
+data_dir <- normalizePath(
+  file.path(script_dir, "..", "..", "dna_real_data", "runs")
+)
+date_stamp <- format(Sys.Date(), "%m%d%y")
+
 ## -------------------- Styling (matches your prior scripts) --------------------
 theme_set(
   theme_minimal(base_size = 8) +
@@ -22,27 +34,43 @@ theme_set(
 
 ## Helper: save a plot as a compact PDF
 save_pdf <- function(plot, filename, width = 6.8, height = 3.0) {
+  tmp <- tempfile(
+    pattern = paste0(".", basename(filename), "."),
+    tmpdir = dirname(filename),
+    fileext = ".pdf"
+  )
+  on.exit(unlink(tmp), add = TRUE)
   if (capabilities("cairo")) {
-    ggsave(filename, plot = plot, width = width, height = height,
+    ggsave(tmp, plot = plot, width = width, height = height,
            units = "in", device = cairo_pdf)
   } else {
-    pdf(filename, width = width, height = height, family = "Helvetica")
+    pdf(tmp, width = width, height = height, family = "Helvetica")
     print(plot); dev.off()
+  }
+  if (file.exists(filename) && !file.remove(filename)) {
+    stop("Cannot replace existing output file: ", filename)
+  }
+  if (!file.rename(tmp, filename)) {
+    stop("Cannot move completed PDF into place: ", filename)
   }
 }
 
 ## -------------------- Colors & Labels (consistent with earlier) --------------------
 method_palette <- c(
-  NJ     = "#4E79A7",  # blue
-  vine   = "#F28E2B",  # orange
-  beast  = "#59A14F",  # green
-  mrbayes  = "#E15759"  # red
+  NJ                = "#4E79A7",
+  vine              = "#F28E2B",
+  beast             = "#59A14F",
+  "beast-beagle"    = "#8BC184",
+  mrbayes           = "#E15759",
+  "mrbayes-beagle"  = "#E98A8C"
 )
 method_labels <- c(
-  NJ     = "NJ",
-  vine   = "Vine",
-  beast  = "BEAST2",
-  mrbayes  = "MrBayes"
+  NJ                = "NJ",
+  vine              = "Vine",
+  beast             = "BEAST2",
+  "beast-beagle"    = "BEAST2 + BEAGLE",
+  mrbayes           = "MrBayes",
+  "mrbayes-beagle"  = "MrBayes + BEAGLE"
 )
 label_map <- function(keys) { out <- method_labels[keys]; out[is.na(out)] <- keys[is.na(out)]; out }
 
@@ -76,14 +104,17 @@ numify <- function(x) as.numeric(gsub(",", "", x, fixed = TRUE))
 ## ====================================================
 ## 1) LOG-LIKELIHOODS (eval.all.lnl.txt) — NJ/vine/BEAST/RAxML
 ## ====================================================
-lnl_raw <- read_eval_table("eval.all.lnl.txt")
+lnl_raw <- read_eval_table(file.path(data_dir, "eval.all.lnl.txt"))
 
 # Normalize column names we care about; ignore 'ml'
 # First col header is 's' per your file; rename it to 'ds' for consistency
 names(lnl_raw)[1] <- "ds"
 
 # Keep only ds + desired methods, in this order
-keep_methods_lnl <- c("NJ","vine","beast","mrbayes")
+keep_methods_lnl <- c(
+  "NJ", "vine", "beast", "beast-beagle",
+  "mrbayes", "mrbayes-beagle"
+)
 # Column names in file are lowercase for methods except NJ spelled 'nj'? Let's normalize to match keep_methods_lnl
 names(lnl_raw) <- sub("^nj$", "NJ", names(lnl_raw), ignore.case = TRUE)
 
@@ -146,7 +177,7 @@ p_lnl_ds <- ggplot(lnl_long, aes(x = ds, y = plot_y, fill = method)) +
                 inherit.aes = FALSE, fill = "gray80", alpha = 0.3) } +
   { if (!is.na(ave_idx))
       geom_vline(xintercept = ave_idx - 0.7, color = unname(method_palette["NJ"]), linewidth = 0.5) } +
-  geom_col(position = position_dodge(width = 0.7), width = 0.5) +
+  geom_col(position = position_dodge(width = 0.7), width = 0.7) +
   geom_hline(yintercept = 0, linewidth = 0.3) +
   labs(x = "DS", y = y_label, fill = "Method") +
   scale_fill_manual(
@@ -166,18 +197,26 @@ p_lnl_ds <- ggplot(lnl_long, aes(x = ds, y = plot_y, fill = method)) +
   ) +
   guides(fill = guide_legend(override.aes = list(width = 0.6)))
 
-save_pdf(p_lnl_ds, "dna_lnl_by_ds.pdf", width = 6.8, height = 3.0)
+lnl_filename <- file.path(script_dir, "dna_lnl_by_ds.pdf")
+lnl_dated_filename <- file.path(
+  script_dir, paste0("dna_lnl_by_ds_", date_stamp, ".pdf")
+)
+save_pdf(p_lnl_ds, lnl_filename, width = 6.8, height = 3.0)
+save_pdf(p_lnl_ds, lnl_dated_filename, width = 6.8, height = 3.0)
 
 ## ===============================================
 ## 2) RUNNING TIMES (eval.all.time.txt) — vine/BEAST/RAxML
 ## ===============================================
-time_raw <- read_eval_table("eval.all.time.txt")
+time_raw <- read_eval_table(file.path(data_dir, "eval.all.time.txt"))
 
 # First col header is 'ds' per your file; ensure it is named 'ds'
 names(time_raw)[1] <- "ds"
 
 # Methods present (omit NJ if absent)
-keep_methods_time <- c("vine","beast","mrbayes")
+keep_methods_time <- c(
+  "vine", "beast", "beast-beagle",
+  "mrbayes", "mrbayes-beagle"
+)
 present_time <- intersect(keep_methods_time, names(time_raw))
 time_df <- time_raw[, c("ds", present_time), drop = FALSE]
 
@@ -219,7 +258,7 @@ p_time_ds <- ggplot(time_long, aes(x = ds, y = value, fill = method)) +
                 inherit.aes = FALSE, fill = "gray80", alpha = 0.3) } +
   { if (!is.na(t_ave_idx))
       geom_vline(xintercept = t_ave_idx - 0.7, color = unname(method_palette["NJ"]), linewidth = 0.5) } +
-  geom_col(position = position_dodge(width = 0.7), width = 0.5) +
+  geom_col(position = position_dodge(width = 0.7), width = 0.7) +
   geom_hline(yintercept = 0, linewidth = 0.3) +
   labs(x = "DS", y = "Time (sec)", fill = "Method") +
   scale_fill_manual(
@@ -243,4 +282,9 @@ p_time_ds <- ggplot(time_long, aes(x = ds, y = value, fill = method)) +
   ) +
   guides(fill = guide_legend(override.aes = list(width = 0.6)))
 
-save_pdf(p_time_ds, "dna_time_by_ds.pdf", width = 6.8, height = 3.0)
+time_filename <- file.path(script_dir, "dna_time_by_ds.pdf")
+time_dated_filename <- file.path(
+  script_dir, paste0("dna_time_by_ds_", date_stamp, ".pdf")
+)
+save_pdf(p_time_ds, time_filename, width = 6.8, height = 3.0)
+save_pdf(p_time_ds, time_dated_filename, width = 6.8, height = 3.0)
