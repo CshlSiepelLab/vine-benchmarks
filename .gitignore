@@ -95,3 +95,6 @@ dna_sims/hky_10000sites_pilot_runs/
 *Grid2.sh
 *gridsummary.txt
 runAltVine.sh
+
+# ignore pilot runs
+*pilot*
