@@ -1,0 +1,11 @@
+NTAXA := 100
+NSAMP := 10
+NSITES := 300
+EXPHEIGHT := 1
+BEAST_MCMCLEN := 5453333
+MRBAYES_MCMCLEN := 1000000
+MCMC_PRINTFREQ := 1000
+VINE_NSAMP := 1000
+VAROPT?=--hky85 -s $(VINE_NSAMP) -v 0 --treeprior YULE --relclock
+
+include ../common.mk

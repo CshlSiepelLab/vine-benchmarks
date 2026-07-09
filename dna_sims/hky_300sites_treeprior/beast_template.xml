@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><beast beautitemplate='Standard' beautistatus='' namespace="beast.core:beast.evolution.alignment:beast.evolution.tree.coalescent:beast.core.util:beast.evolution.nuc:beast.evolution.operators:beast.evolution.sitemodel:beast.evolution.substitutionmodel:beast.base.evolution.alignment:beast.pkgmgmt:beast.base.core:beast.base.inference:beast.base.evolution.tree.coalescent:beast.pkgmgmt:beast.base.core:beast.base.inference.util:beast.evolution.nuc:beast.base.evolution.operator:beast.base.inference.operator:beast.base.evolution.sitemodel:beast.base.evolution.substitutionmodel:beast.base.evolution.likelihood" required="BEAST.base v2.7.8" version="2.7">
+    
+    <!-- FASTA via feast -->
+    <data id="tree" spec="feast.fileio.AlignmentFromFasta" fileName="$(fastapath)"/>
+     
+    <map name="Uniform" >beast.base.inference.distribution.Uniform</map>
+
+    <map name="Exponential" >beast.base.inference.distribution.Exponential</map>
+
+    <map name="LogNormal" >beast.base.inference.distribution.LogNormalDistributionModel</map>
+
+    <map name="Normal" >beast.base.inference.distribution.Normal</map>
+
+    <map name="Beta" >beast.base.inference.distribution.Beta</map>
+
+    <map name="Gamma" >beast.base.inference.distribution.Gamma</map>
+
+    <map name="LaplaceDistribution" >beast.base.inference.distribution.LaplaceDistribution</map>
+
+    <map name="prior" >beast.base.inference.distribution.Prior</map>
+
+    <map name="InverseGamma" >beast.base.inference.distribution.InverseGamma</map>
+
+    <map name="OneOnX" >beast.base.inference.distribution.OneOnX</map>
+
+    <run id="mcmc" spec="MCMC" chainLength="$(mcmclength)" storeEvery="5000">
+        <state id="state" spec="State" storeEvery="5000">
+            <tree id="Tree.t:tree" spec="beast.base.evolution.tree.Tree" name="stateNode">
+                <taxonset id="TaxonSet.tree" spec="TaxonSet">
+                    <alignment idref="tree"/>
+                </taxonset>
+            </tree>
+            <parameter id="birthRate.t:tree" spec="parameter.RealParameter" lower="0.0" name="stateNode">1.0</parameter>
+            <parameter id="kappa.s:tree" spec="parameter.RealParameter" lower="0.0" name="stateNode">4.0</parameter>
+            <parameter id="ucldStdev.c:tree" spec="parameter.RealParameter" lower="0.0" name="stateNode">0.1</parameter>
+            <!-- manually added for prior on kappa -->
+            <parameter id="kappaLogMean"
+               spec="parameter.RealParameter"
+               name="stateNode"
+               estimate="true">1.386</parameter>
+            <!-- end manually added -->
+            <stateNode id="rateCategories.c:tree" spec="parameter.IntegerParameter" dimension="18">1</stateNode>
+        </state>
+        <init id="RandomTree.t:tree" spec="RandomTree" estimate="false" initial="@Tree.t:tree" taxa="@tree">
+            <populationModel id="ConstantPopulation0.t:tree" spec="ConstantPopulation">
+                <parameter id="randomPopSize.t:tree" spec="parameter.RealParameter" name="popSize">1.0</parameter>
+            </populationModel>
+        </init>
+        <distribution id="posterior" spec="CompoundDistribution">
+            <distribution id="prior" spec="CompoundDistribution">
+                <distribution id="YuleModel.t:tree" spec="beast.base.evolution.speciation.YuleModel" birthDiffRate="@birthRate.t:tree" tree="@Tree.t:tree"/>
+                <prior id="YuleBirthRatePrior.t:tree" name="distribution" x="@birthRate.t:tree">
+                    <Uniform id="Uniform.1" name="distr" upper="Infinity"/>
+                </prior>
+
+                <!-- manually added for prior on kappa -->
+                <!-- Broad hyperprior on the log-mean of kappa -->
+                <prior id="prior.kappaLogMean" name="distribution" x="@kappaLogMean">
+                    <Normal name="distr" mean="1.386" sigma="5.0"/>
+                </prior>
+
+                <!-- LogNormal prior on kappa with small S to constrain variance; M is linked to kappaLogMean -->
+                <prior id="prior.kappa" name="distribution" x="@kappa.s:tree">
+                    <LogNormal name="distr" meanInRealSpace="false">
+                        <parameter name="M" idref="kappaLogMean"/>
+                        <parameter name="S" estimate="false">0.1</parameter>
+                    </LogNormal>
+                </prior>
+                <!-- end manually added -->
+
+                <!-- (old prior)
+                <prior id="KappaPrior.s:tree" name="distribution" x="@kappa.s:tree">
+                    <LogNormal id="LogNormalDistributionModel.1" name="distr">
+                        <parameter id="RealParameter.5" spec="parameter.RealParameter" estimate="false" name="M">1.0</parameter>
+                        <parameter id="RealParameter.6" spec="parameter.RealParameter" estimate="false" name="S">1.25</parameter>
+                    </LogNormal>
+                    </prior> -->
+
+                <!-- manually added: diffuse prior on stdev of local clock -->
+                <prior id="ucldStdevPrior.c:tree" name="distribution" x="@ucldStdev.c:tree">
+                  <Exponential name="distr">
+                    <parameter name="mean" value="2.0" estimate="false"/>
+                  </Exponential>
+                </prior>
+
+                <!-- (old prior)
+                <prior id="ucldStdevPrior.c:tree" name="distribution" x="@ucldStdev.c:tree">
+                    <Gamma id="Gamma.2" name="distr">
+                        <parameter id="RealParameter.9" spec="parameter.RealParameter" estimate="false" name="alpha">0.5396</parameter>
+                        <parameter id="RealParameter.10" spec="parameter.RealParameter" estimate="false" name="beta">0.3819</parameter>
+                    </Gamma>
+                </prior> -->
+
+            </distribution>
+            <distribution id="likelihood" spec="CompoundDistribution" useThreads="true">
+                <distribution id="treeLikelihood.tree" spec="ThreadedTreeLikelihood" data="@tree" tree="@Tree.t:tree">
+                    <siteModel id="SiteModel.s:tree" spec="SiteModel">
+                        <parameter id="mutationRate.s:tree" spec="parameter.RealParameter" estimate="false" lower="0.0" name="mutationRate">1.0</parameter>
+                        <parameter id="gammaShape.s:tree" spec="parameter.RealParameter" estimate="false" lower="0.1" name="shape">1.0</parameter>
+                        <parameter id="proportionInvariant.s:tree" spec="parameter.RealParameter" estimate="false" lower="0.0" name="proportionInvariant" upper="1.0">0.0</parameter>
+                        <substModel id="hky.s:tree" spec="HKY" kappa="@kappa.s:tree">
+                            <frequencies id="empiricalFreqs.s:tree" spec="Frequencies" data="@tree"/>
+                        </substModel>
+                    </siteModel>
+                    <branchRateModel id="RelaxedClock.c:tree" spec="beast.base.evolution.branchratemodel.UCRelaxedClockModel" rateCategories="@rateCategories.c:tree" tree="@Tree.t:tree">
+                        <LogNormal id="LogNormalDistributionModel.c:tree" S="@ucldStdev.c:tree" meanInRealSpace="true" name="distr">
+                            <parameter id="RealParameter.8" spec="parameter.RealParameter" estimate="false" lower="0.0" name="M" upper="1.0">1.0</parameter>
+                        </LogNormal>
+                        <parameter id="ucldMean.c:tree" spec="parameter.RealParameter" estimate="false" lower="0.0" name="clock.rate">1.0</parameter>
+                    </branchRateModel>
+                </distribution>
+            </distribution>
+        </distribution>
+        <operator id="YuleBirthRateScaler.t:tree" spec="kernel.BactrianScaleOperator" parameter="@birthRate.t:tree" upper="10.0" weight="3.0"/>
+        <operator id="YuleModelTreeRootScaler.t:tree" spec="kernel.BactrianScaleOperator" rootOnly="true" scaleFactor="0.5" tree="@Tree.t:tree" upper="10.0" weight="3.0"/>
+        <operator id="YuleModelUniformOperator.t:tree" spec="kernel.BactrianNodeOperator" tree="@Tree.t:tree" weight="30.0"/>
+        <operator id="YuleModelSubtreeSlide.t:tree" spec="kernel.BactrianSubtreeSlide" tree="@Tree.t:tree" weight="15.0"/>
+        <operator id="YuleModelNarrow.t:tree" spec="Exchange" tree="@Tree.t:tree" weight="15.0"/>
+        <operator id="YuleModelWide.t:tree" spec="Exchange" isNarrow="false" tree="@Tree.t:tree" weight="3.0"/>
+        <operator id="YuleModelWilsonBalding.t:tree" spec="WilsonBalding" tree="@Tree.t:tree" weight="3.0"/>
+        <operator id="YuleModelBICEPSEpochTop.t:tree" spec="EpochFlexOperator" scaleFactor="0.1" tree="@Tree.t:tree" weight="2.0"/>
+        <operator id="YuleModelBICEPSEpochAll.t:tree" spec="EpochFlexOperator" fromOldestTipOnly="false" scaleFactor="0.1" tree="@Tree.t:tree" weight="2.0"/>
+        <operator id="YuleModelBICEPSTreeFlex.t:tree" spec="TreeStretchOperator" scaleFactor="0.01" tree="@Tree.t:tree" weight="2.0"/>
+        <operator id="KappaScaler.s:tree" spec="AdaptableOperatorSampler" weight="0.05">
+            <parameter idref="kappa.s:tree"/>
+            <operator id="AVMNOperator.tree" spec="kernel.AdaptableVarianceMultivariateNormalOperator" allowNonsense="true" beta="0.05" burnin="400" initial="800" weight="0.1">
+                <transformations id="AVMNLogTransform.tree" spec="operator.kernel.Transform$LogTransform">
+                    <f idref="kappa.s:tree"/>
+                </transformations>
+                <transformations id="AVMNNoTransform.tree" spec="operator.kernel.Transform$NoTransform">
+                    <f idref="Tree.t:tree"/>
+                </transformations>
+            </operator>
+            <operator id="KappaScalerX.s:tree" spec="kernel.BactrianScaleOperator" parameter="@kappa.s:tree" scaleFactor="0.1" upper="10.0" weight="0.1"/>
+        </operator>
+        <operator id="ucldStdevScaler.c:tree" spec="ScaleOperator" parameter="@ucldStdev.c:tree" scaleFactor="0.5" weight="5.0"/>
+        <operator id="CategoriesRandomWalk.c:tree" spec="operator.IntRandomWalkOperator" parameter="@rateCategories.c:tree" weight="10.0" windowSize="1"/>
+        <operator id="CategoriesSwapOperator.c:tree" spec="operator.SwapOperator" intparameter="@rateCategories.c:tree" weight="10.0"/>
+        <operator id="CategoriesUniform.c:tree" spec="operator.UniformOperator" parameter="@rateCategories.c:tree" weight="10.0"/>
+
+        <!-- manually added for prior on kappa -->
+        <operator id="rw.kappaLogMean"
+              spec="beast.base.inference.operator.RealRandomWalkOperator"
+              parameter="@kappaLogMean"
+              windowSize="0.25"
+              weight="1.0"/>
+        <!-- end manually added -->
+        
+        <logger id="tracelog" spec="Logger" fileName="$(filebase).log" logEvery="$(samplefreq)" model="@posterior" sanitiseHeaders="true" sort="smart">
+            <log idref="posterior"/>
+            <log idref="likelihood"/>
+            <log idref="prior"/>
+            <log idref="treeLikelihood.tree"/>
+            <log id="TreeHeight.t:tree" spec="beast.base.evolution.tree.TreeStatLogger" tree="@Tree.t:tree"/>
+            <log idref="YuleModel.t:tree"/>
+            <log idref="birthRate.t:tree"/>
+            <log idref="kappa.s:tree"/>
+            <log idref="ucldStdev.c:tree"/>
+            <log id="rate.c:tree" spec="beast.base.evolution.RateStatistic" branchratemodel="@RelaxedClock.c:tree" tree="@Tree.t:tree"/>
+        </logger>
+        <logger id="screenlog" spec="Logger" logEvery="$(printfreq)">
+            <log idref="posterior"/>
+            <log idref="likelihood"/>
+            <log idref="prior"/>
+        </logger>
+        <logger id="treelog.t:tree" spec="Logger" fileName="$(filebase)-$(tree).trees" logEvery="$(samplefreq)" mode="tree">
+            <log id="TreeWithMetaDataLogger.t:tree" spec="beast.base.evolution.TreeWithMetaDataLogger" branchratemodel="@RelaxedClock.c:tree" tree="@Tree.t:tree" dp="6"/>
+        </logger>
+        <operatorschedule id="OperatorSchedule" spec="OperatorSchedule"/>
+    </run>
+
+</beast>
