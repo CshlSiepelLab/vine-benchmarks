@@ -19,10 +19,11 @@ BEAST_BIN := $(BIN)/beast/bin
 BEAST := $(BEAST_BIN)/beast
 MRBAYES := $(OTHER_BIN)/mb
 BEAST_TEMPLATE := $(ROOT)/beast_template.xml
-DODONAPHY_SIF := $(MAIN_DIR)/dodonaphy/dodonaphy.sif
-GEOPHY_SIF := $(MAIN_DIR)/geophy/geophy.sif
-GEOPHY_CONFIG := $(MAIN_DIR)/geophy/default.yaml
-VAIPHY_SIF := $(MAIN_DIR)/vaiphy/vaiphy.sif
+CONTAINERS := $(MAIN_DIR)/containers
+DODONAPHY_SIF := $(CONTAINERS)/dodonaphy/dodonaphy.sif
+GEOPHY_SIF := $(CONTAINERS)/geophy/geophy.sif
+GEOPHY_CONFIG := $(CONTAINERS)/geophy/default.yaml
+VAIPHY_SIF := $(CONTAINERS)/vaiphy/vaiphy.sif
 BURNIN_PCT := 10
 METRIC_TREE_COUNT := 1000
 

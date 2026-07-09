@@ -12,7 +12,7 @@ ROOT_SUFFIX := dna_sims/hky_300sites
 ROOT := $(MAIN_DIR)/$(ROOT_SUFFIX)
 BIN := $(MAIN_DIR)/bin
 PYTHON_SRC := $(MAIN_DIR)/python/src
-PHAST_BIN := /home/hassett/phast-vine/phast/build/src#$(BIN)/phast/bin
+PHAST_BIN := $(BIN)/phast/bin
 VINE_BIN := $(BIN)/vine/bin
 BEAST_BIN := $(MAIN_DIR)/bin/beast/bin
 BEAST := $(BEAST_BIN)/beast
@@ -276,14 +276,9 @@ tree.%.raxmllnl: tree.%.raxml.term
 tree.%.lnl: tree.%.modlnl tree.%.varlnl tree.%.beastlnl tree.%.beast-beaglelnl tree.%.mrbayeslnl tree.%.mrbayes-beaglelnl tree.%.raxmllnl tree.%.beast-beagle.log
 	cat tree.$*.modlnl tree.$*.varlnl tree.$*.beastlnl tree.$*.beast-beaglelnl tree.$*.mrbayeslnl tree.$*.mrbayes-beaglelnl tree.$*.raxmllnl | awk '{if (true == 0) true = $$2; printf "%s %f\n", $$0, $$2 - true}' > $@
 
-# When EXCLUDE is set (e.g. EXCLUDE=3 or EXCLUDE=3,5,7), those replicates are
-# omitted; when EXCLUDE is empty, all replicates are included.
 eval.all.lnl.txt: $(LNL)
 	echo -e "true\tnj\tml\tvine\tbeast\tbeast-beagle\tmrbayes\tmrbayes-beagle\traxml" > lnltmp; \
-	excl=",$(EXCLUDE),"; \
 	for file in $(LNL); do \
-	  num=$$(basename $$file | sed 's/tree\.\([0-9]*\)\.lnl/\1/'); \
-	  case "$$excl" in *",$$num,"*) continue ;; esac; \
 	  awk '{printf "%s\t", $$2}' $$file >> lnltmp; \
 	  echo >> lnltmp; \
 	done; \

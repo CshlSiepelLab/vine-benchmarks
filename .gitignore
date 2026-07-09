@@ -46,6 +46,7 @@ updated.all*
 summary.*
 *Summary.*
 *.pdf
+*.png
 *.time
 *.dist
 vine-*.emb.tsv
