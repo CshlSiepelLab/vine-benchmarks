@@ -14,8 +14,8 @@ MAIN_DIR := /local/storage/no-backup/vine-benchmarks
 PYTHON_SRC := $(MAIN_DIR)/python/src
 BIN := $(MAIN_DIR)/bin
 PHAST_BIN := $(BIN)/phast/bin
-# VINE_BIN := $(BIN)/vine/bin
-VINE_BIN := /home/staklins/projects/vine_project/vine/bin
+VINE_BIN := $(BIN)/vine/bin
+#VINE_BIN := /home/staklins/projects/vine_project/vine/bin
 CONTAINERS := $(MAIN_DIR)/containers
 LAML_SIF := $(CONTAINERS)/laml/laml.sif
 GRAPHPOSTERIOR_SIF := $(CONTAINERS)/graphposterior/graphposterior.sif
@@ -36,7 +36,7 @@ TIMES := $(QUINNCPS:%=quinn.%.time)
 LNLS := $(QUINNCPS:%=quinn.%.lnl)
 CHECKLNLS := $(QUINNCPS:%=quinn.%.checklnl)
 
-VAROPT?=-M 400 -c 100 -v 0 
+VAROPT?=-v 0 
 
 all: $(VARLOG) $(LAMLTREES) $(VARTREES) $(TIMES) $(LNLS) summary.lnl.txt summary.time.txt
 

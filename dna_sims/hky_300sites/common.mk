@@ -12,7 +12,7 @@ ROOT_SUFFIX := dna_sims/hky_300sites
 ROOT := $(MAIN_DIR)/$(ROOT_SUFFIX)
 BIN := $(MAIN_DIR)/bin
 PYTHON_SRC := $(MAIN_DIR)/python/src
-PHAST_BIN := $(BIN)/phast/bin
+PHAST_BIN := /home/hassett/phast-vine/phast/build/src#$(BIN)/phast/bin
 VINE_BIN := $(BIN)/vine/bin
 BEAST_BIN := $(MAIN_DIR)/bin/beast/bin
 BEAST := $(BEAST_BIN)/beast
@@ -174,20 +174,25 @@ tree.%.mrbayes-beagle.term tree.%.mrbayes-beagle.nex.p tree.%.mrbayes-beagle.nex
 	$(MRBAYES) tree.$*.mrbayes-beagle.nex > tree.$*.mrbayes-beagle.term
 
 # Get mrbayes tree in nexus format
-tree.%.mrbayes.nwk: tree.%.mrbayes.nex.t
+tree.%.mrbayes.nwk: tree.%.mrbayes.nex.t $(ROOT)/common.mk
 	SKIP=$$(awk -v p=$(BURNIN_PCT) \
 	  '/^[[:space:]]*tree[[:space:]]+/{c++} END{printf "%d", int(c*p/100)}' $<); \
-	THIN=$$(( $(MRBAYES_MCMCLEN) / $(MRBAYES_SAMPLEFREQ) / 1000 )); \
-	awk -v skip="$$SKIP" -v thin="$$THIN" '\
+	N=$$(awk '/^[[:space:]]*tree[[:space:]]+/{c++} END{print c}' $<); \
+	REMAINING=$$(( N - SKIP )); \
+	TARGET=$(METRIC_TREE_COUNT); \
+	if [ "$$REMAINING" -lt "$$TARGET" ]; then TARGET=$$REMAINING; fi; \
+	awk -v skip="$$SKIP" -v remaining="$$REMAINING" -v target="$$TARGET" '\
 	  /^[[:space:]]*tree[[:space:]]+/{ \
 	    if (++c <= skip) next; \
-	    if ((c - skip) % thin) next \
+	    j = c - skip; \
+	    if (int(j*target/remaining) == int((j-1)*target/remaining)) next \
 	  } \
 	  1' \
 	  $< > tree.$*.mrbayes.thinned.t
 	$(BIN)/convertTrees -i nexus \
 	  tree.$*.mrbayes.thinned.t \
-	  | sed 's/^\[&[^]]*\]\s*//' > $@
+	  | sed 's/^\[&[^]]*\]\s*//' > tree.$*.mrbayes.nwk.tmp
+	mv -f tree.$*.mrbayes.nwk.tmp $@
 	rm -f tree.$*.mrbayes.thinned.t
 
 tree.%.mrbayes-beagle.nwk: tree.%.mrbayes-beagle.nex.t
@@ -207,7 +212,8 @@ tree.%.mrbayes-beagle.nwk: tree.%.mrbayes-beagle.nex.t
 	  $< > tree.$*.mrbayes-beagle.thinned.t
 	$(BIN)/convertTrees -i nexus \
 	  tree.$*.mrbayes-beagle.thinned.t \
-	  | sed 's/^\[&[^]]*\]\s*//' > $@
+	  | sed 's/^\[&[^]]*\]\s*//' > tree.$*.mrbayes-beagle.nwk.tmp
+	mv -f tree.$*.mrbayes-beagle.nwk.tmp $@
 	rm -f tree.$*.mrbayes-beagle.thinned.t
 
 # Run raxml
@@ -371,25 +377,20 @@ tree.%.mrbayes.mf.txt: tree.%.mrbayes.nwk tree.%.heldout.fa \
 
 tree.%.mrbayes-beagle.mf.txt: tree.%.mrbayes-beagle.nwk tree.%.heldout.fa \
                               tree.%.mrbayes-beagle.nex.p
-	kappa=`awk '\
-	  BEGIN { \
-	    FS = "\t"; \
-	  } \
-	  { \
-	    gsub(/^[ \t]+|[ \t]+$$/, "", $$0); \
-	    if ($$0 == "" || $$0 ~ /^\[/) next; \
-	    if ($$1 == "Gen") { \
-	      for (i = 1; i <= NF; i++) \
-	        if ($$i == "TL") tl = i; \
-	        else if ($$i == "kappa") kap = i; \
-	      next; \
+	kappa=`awk -v p=$(BURNIN_PCT) '\
+	  $$1=="Gen"{\
+	    for(i=1;i<=NF;i++) if($$i=="kappa") c=i; next\
+	  }\
+	  $$1!="Gen" && c { vals[++n]=$$c }\
+	  END { \
+	    if(n){ \
+	      skip=int(n*p/100); \
+	      if(skip>=n) skip=n-1; \
+	      sum=0; cnt=0; \
+	      for(i=skip+1;i<=n;i++){ sum+=vals[i]; cnt++ } \
+	      if(cnt) printf "%.6f\\n", sum/cnt; \
 	    } \
-	    if (tl && kap && ($$tl + 0) > max) { \
-	      max = $$tl + 0; \
-	      bestk = $$kap; \
-	    } \
-	  } \
-	  END { print bestk } \
+	  }\
 	' tree.$*.mrbayes-beagle.nex.p` ;\
 	$(VINE_BIN)/evalTrees tree.$*.mrbayes-beagle.nwk -f tree.$*.heldout.fa \
 	  -k $$kappa > $@
@@ -430,11 +431,21 @@ tree.%.beast-beagle.dist.txt: tree.%.beast-beagle.nwk tree.%.true.dist.txt
 	python3 "$(PYTHON_SRC)/sumDists.py" tmp.$*.beast-beagle.dist tree.$*.true.dist.txt | grep -v '^#' > $@
 	rm tmp.$*.beast-beagle.dist
 
-tree.%.dist: tree.%.ml.dist.txt tree.%.var.dist.txt tree.%.beast.dist.txt tree.%.beast-beagle.dist.txt
-	paste $^ > $@
+tree.%.mrbayes.dist.txt: tree.%.mrbayes.nwk tree.%.true.dist.txt
+	$(VINE_BIN)/evalTrees tree.$*.mrbayes.nwk > tmp.$*.mrbayes.dist
+	python3 "$(PYTHON_SRC)/sumDists.py" tmp.$*.mrbayes.dist tree.$*.true.dist.txt | grep -v '^#' > $@
+	rm tmp.$*.mrbayes.dist
 
-eval.all.dist.txt: $(EVALDIST)
-	cat $^ | awk '{print $$1, $$2, $$6, $$7, $$8, $$9, $$11, $$12, $$13, $$14, $$16, $$17, $$18, $$19}' | awk 'BEGIN {printf "ML_r2 ML_RMSE vine_r2 vine_RMSE vine_95CI vine_50CI beast_r2 beast_RMSE beast_95CI beast_50CI beast-beagle_r2 beast-beagle_RMSE beast-beagle_95CI beast-beagle_50CI\n"} {for(i=1;i<=NF;i++) x[i]+=$$i; print $$0} END{printf "-----\n"; for(i=1;i<=14;i++) printf "%f%s", x[i]/NR, (i<14 ? "\t" : "\n")}' > $@
+tree.%.mrbayes-beagle.dist.txt: tree.%.mrbayes-beagle.nwk tree.%.true.dist.txt
+	$(VINE_BIN)/evalTrees tree.$*.mrbayes-beagle.nwk > tmp.$*.mrbayes-beagle.dist
+	python3 "$(PYTHON_SRC)/sumDists.py" tmp.$*.mrbayes-beagle.dist tree.$*.true.dist.txt | grep -v '^#' > $@
+	rm tmp.$*.mrbayes-beagle.dist
+
+tree.%.dist: tree.%.ml.dist.txt tree.%.var.dist.txt tree.%.beast.dist.txt tree.%.beast-beagle.dist.txt tree.%.mrbayes.dist.txt tree.%.mrbayes-beagle.dist.txt $(ROOT)/common.mk
+	paste $(filter %.dist.txt,$^) > $@
+
+eval.all.dist.txt: $(EVALDIST) $(ROOT)/common.mk
+	cat $(filter %.dist,$^) | awk '{print $$1, $$2, $$6, $$7, $$8, $$9, $$11, $$12, $$13, $$14, $$16, $$17, $$18, $$19, $$21, $$22, $$23, $$24, $$26, $$27, $$28, $$29}' | awk 'BEGIN {printf "ML_r2 ML_RMSE vine_r2 vine_RMSE vine_95CI vine_50CI beast_r2 beast_RMSE beast_95CI beast_50CI beast-beagle_r2 beast-beagle_RMSE beast-beagle_95CI beast-beagle_50CI mrbayes_r2 mrbayes_RMSE mrbayes_95CI mrbayes_50CI mrbayes-beagle_r2 mrbayes-beagle_RMSE mrbayes-beagle_95CI mrbayes-beagle_50CI\n"} {for(i=1;i<=NF;i++) x[i]+=$$i; print $$0} END{printf "-----\n"; for(i=1;i<=22;i++) printf "%f%s", x[i]/NR, (i<22 ? "\t" : "\n")}' > $@
 
 # (3) RF dist
 tree.%.var.rf.txt: tree.%.var.nwk tree.%.true.nwk
@@ -499,11 +510,17 @@ tree.%.beast.ent.txt: tree.%.beast.nwk
 tree.%.beast-beagle.ent.txt: tree.%.beast-beagle.nwk
 	$(VINE_BIN)/evalTrees -e tree.$*.beast-beagle.nwk | awk '{printf "%f\t", $$NF} END {printf "\n"}' > $@
 
-tree.%.ent: tree.%.var.ent.txt tree.%.beast.ent.txt tree.%.beast-beagle.ent.txt
-	paste $^ > $@
+tree.%.mrbayes.ent.txt: tree.%.mrbayes.nwk
+	$(VINE_BIN)/evalTrees -e tree.$*.mrbayes.nwk | awk '{printf "%f\t", $$NF} END {printf "\n"}' > $@
 
-eval.all.ent.txt: $(EVALENT)
-	cat $^ | awk 'BEGIN {printf "vine_spl\tvine_top\tvine_br\tbeast_spl\tbeast_top\tbeast_br\tbeast-beagle_spl\tbeast-beagle_top\tbeast-beagle_br\n"} {for(i=1;i<=NF;i++) x[i]+=$$i; print $$0} END {printf "-----\n"; for(i=1;i<=9;i++) printf "%f%s", x[i]/NR, (i<9 ? "\t" : "\n")}' > $@
+tree.%.mrbayes-beagle.ent.txt: tree.%.mrbayes-beagle.nwk
+	$(VINE_BIN)/evalTrees -e tree.$*.mrbayes-beagle.nwk | awk '{printf "%f\t", $$NF} END {printf "\n"}' > $@
+
+tree.%.ent: tree.%.var.ent.txt tree.%.beast.ent.txt tree.%.beast-beagle.ent.txt tree.%.mrbayes.ent.txt tree.%.mrbayes-beagle.ent.txt $(ROOT)/common.mk
+	paste $(filter %.ent.txt,$^) > $@
+
+eval.all.ent.txt: $(EVALENT) $(ROOT)/common.mk
+	cat $(filter %.ent,$^) | awk 'BEGIN {printf "vine_spl\tvine_top\tvine_br\tbeast_spl\tbeast_top\tbeast_br\tbeast-beagle_spl\tbeast-beagle_top\tbeast-beagle_br\tmrbayes_spl\tmrbayes_top\tmrbayes_br\tmrbayes-beagle_spl\tmrbayes-beagle_top\tmrbayes-beagle_br\n"} {for(i=1;i<=NF;i++) x[i]+=$$i; print $$0} END {printf "-----\n"; for(i=1;i<=15;i++) printf "%f%s", x[i]/NR, (i<15 ? "\t" : "\n")}' > $@
 
 # for use in debugging
 tracer: $(TRACER)

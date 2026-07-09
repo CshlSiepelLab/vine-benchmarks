@@ -13,7 +13,8 @@ parser.add_argument("--nruns", type=int, default=1, required=False, help="Number
 parser.add_argument("--nchains", type=int, default=1, required=False, help="Number of chains per run for Metropolis-coupled MCMC used in MrBayes")
 parser.add_argument("--sump", action="store_true", help="If set, run mrbayes sump command for summarizing parameters after MCMC")
 parser.add_argument("--sumt", action="store_true", help="If set, run mrbayes sumt command for summarizing trees after MCMC")
-parser.add_argument("--model", type=str, choices=["HKY","JC69"], default="HKY", help="Substitution model to use in MrBayes block (default: HKY)")
+parser.add_argument("--model", type=str, choices=["HKY","JC69","GTR"], default="HKY", help="Substitution model to use in MrBayes block (default: HKY)")
+parser.add_argument("--ngammacat", type=int, default=4, help="Number of discrete gamma rate categories (used with GTR model, default: 4)")
 parser.add_argument("--use_beagle", action="store_true", help="If set, enable BEAGLE library for computations")
 args = parser.parse_args()
 
@@ -44,7 +45,7 @@ with open(in_nexus, "r") as in_f:
         # Generic run parameters
         f.write("\tset autoclose=yes nowarn=yes;\n")
         if use_beagle:
-            f.write("\tset usebeagle=yes;\n")
+            f.write("\tset usebeagle=yes beagleprecision=double;\n")
         else:
             f.write("\tset usebeagle=no;\n")
         
@@ -61,6 +62,11 @@ with open(in_nexus, "r") as in_f:
             f.write("\tlset nst=1 rates=equal;\n")
             # JC69 uses equal base frequencies
             f.write("\tprset statefreqpr=fixed(equal);\n")
+        elif model == "GTR":
+            f.write(f"\tlset nst=6 rates=gamma ngammacat={args.ngammacat};\n")
+            f.write("\tprset statefreqpr=dirichlet(1,1,1,1);\n")
+            f.write("\tprset revmatpr=dirichlet(1,1,1,1,1,1);\n")
+            f.write("\tprset shapepr=exponential(1.0);\n")
         
         # MCMC parameters
         f.write(f"\tmcmc nruns={nruns} nchains={nchains} ngen={mcmc_length} samplefreq={sample_freq} printfreq={print_freq} diagnfreq={diagn_freq};\n")

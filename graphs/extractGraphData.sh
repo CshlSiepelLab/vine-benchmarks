@@ -8,7 +8,7 @@ stats="/local/storage/no-backup/vine-benchmarks/bin/stats"
 set -e
 
 if [[ $# -lt 1 ]]; then
-  echo "Usage: bash extractGraphData.sh [hky300|hky10k|jc69|gtr]" >&2
+  echo "Usage: bash extractGraphData.sh [hky300|hky10k|jc69|gtr|treeprior]" >&2
   exit 1
 fi
 
@@ -17,9 +17,9 @@ raw_model="$1"
 model="$raw_model"
 
 case "$model" in
-  hky300|hky10k|jc69|gtr) ;;
+  hky300|hky10k|jc69|gtr|treeprior) ;;
   *)
-    echo "Model must be 'hky300', 'hky10k', 'jc69', or 'gtr'." >&2
+    echo "Model must be 'hky300', 'hky10k', 'jc69', 'gtr', or 'treeprior'." >&2
     exit 1
     ;;
 esac
@@ -37,6 +37,9 @@ elif [[ "$model" == "hky10k" ]]; then
 elif [[ "$model" == "gtr" ]]; then
   ROOT="/local/storage/no-backup/vine-benchmarks/dna_sims/gtr_gamma_300sites"
   OUT_DIR="$graphs_dir/gtr-data"
+elif [[ "$model" == "treeprior" ]]; then
+  ROOT="/local/storage/no-backup/vine-benchmarks/dna_sims/hky_300sites_treeprior"
+  OUT_DIR="$graphs_dir/hky300-treeprior-data"
 else
   ROOT="/local/storage/no-backup/vine-benchmarks/dna_sims/jc69_300sites"
   OUT_DIR="$graphs_dir/jc69-data"
@@ -52,10 +55,15 @@ if [[ "$model" == "hky300" ]]; then
   time_sizes=( "10" "25" "50" "100" "250" "500" "1000")
   sizes=( "10" "25" "50" "100" "250" "500" "1000")
 elif [[ "$model" == "gtr" ]]; then
-  lnl_sizes=( "10" "25" "50")
-  time_sizes=( "10" "25" "50")
-  mf_sizes=( "10" "25" "50")
-  sizes=( "10" "25" "50")
+  lnl_sizes=( "10" "25" "50" "100")
+  time_sizes=( "10" "25" "50" "100")
+  mf_sizes=( "10" "25" "50" "100")
+  sizes=( "10" "25" "50" "100")
+elif [[ "$model" == "treeprior" ]]; then
+  lnl_sizes=( "10" "25" "50" "100" "250" "500" "1000")
+  time_sizes=( "10" "25" "50" "100" "250" "500" "1000")
+  mf_sizes=( "10" "25" "50" "100" "250" "500" "1000")
+  sizes=( "10" "25" "50" "100" "250" "500" "1000")
 else
   sizes=( "10" "25" "50" "100")
   if [[ "$model" == "jc69" ]]; then
@@ -160,7 +168,7 @@ if [[ "$model" == "jc69" ]]; then
 mrbayes	std	mrbayes-beagle	std	\
 dodonaphy	std	geophy	std	vaiphy	std" \
   | expand -t 1 > "$OUT_DIR/lnlSummary.txt"
-elif [[ "$model" == "hky300" || "$model" == "hky10k" ]]; then
+elif [[ "$model" == "hky300" || "$model" == "hky10k" || "$model" == "treeprior" ]]; then
   printf "%s\n" \
 "ntaxa	ave	NJ	std	vine	std	beast	std	beast-beagle	std	\
 mrbayes	std	mrbayes-beagle	std" \
@@ -179,7 +187,7 @@ for s in "${lnl_sizes[@]}"; do
 
   if [[ "$model" == "jc69" ]]; then
     methods=(nj vine beast beast-beagle mrbayes mrbayes-beagle dodonaphy geophy vaiphy)
-  elif [[ "$model" == "hky300" || "$model" == "hky10k" ]]; then
+  elif [[ "$model" == "hky300" || "$model" == "hky10k" || "$model" == "treeprior" ]]; then
     methods=(nj vine beast beast-beagle mrbayes mrbayes-beagle)
   else
     methods=(nj vine beast mrbayes)
@@ -201,7 +209,7 @@ if [[ "$model" == "jc69" ]]; then
 "ntaxa	vine	std	beast	std	beast-beagle	std	mrbayes	std	\
 mrbayes-beagle	std	dodonaphy	std	geophy	std	vaiphy	std" \
   | expand -t 1 > "$OUT_DIR/timeSummary.txt"
-elif [[ "$model" == "hky300" || "$model" == "hky10k" ]]; then
+elif [[ "$model" == "hky300" || "$model" == "hky10k" || "$model" == "treeprior" ]]; then
   printf "%s\n" \
 "ntaxa	vine	std	beast	std	beast-beagle	std	mrbayes	std	\
 mrbayes-beagle	std" \
@@ -242,7 +250,7 @@ for s in "${time_sizes[@]}"; do
         fi
       done
     fi
-  elif [[ "$model" == "hky300" || "$model" == "hky10k" ]]; then
+  elif [[ "$model" == "hky300" || "$model" == "hky10k" || "$model" == "treeprior" ]]; then
     for col in 6 2 3 4 5; do
       head -11 "$(path_time "$s")" | tail -10 | \
         awk -v c="$col" '{print $c}' | $stats | sed 's/,//g' | \
@@ -271,7 +279,7 @@ done
 
 # ---------------- speedSummary.txt ----------------
 if [[ "$model" == "jc69" || "$model" == "hky300" ||
-      "$model" == "hky10k" ]]; then
+      "$model" == "hky10k" || "$model" == "treeprior" ]]; then
   printf "ntaxa\tbeast\tstd\tbeast-beagle\tstd\tmrbayes\tstd\tmrbayes-beagle\tstd\n" \
     > "$OUT_DIR/speedSummary.txt"
   for s in "${sizes[@]}"; do
@@ -325,7 +333,7 @@ else
 fi
 
 # ---------------- mfSummary.txt ----------------
-if [[ "$model" == "hky300" || "$model" == "hky10k" ]]; then
+if [[ "$model" == "hky300" || "$model" == "hky10k" || "$model" == "treeprior" ]]; then
   printf "%s\n" \
 "ntaxa	true	std	NJ	std	vine	std	beast	std	beast-beagle	std	\
 mrbayes	std	mrbayes-beagle	std" \
@@ -337,7 +345,7 @@ else
 fi
 for s in "${mf_sizes[@]}"; do
   printf "%s\t" "$s" >> "$OUT_DIR/mfSummary.txt"
-  if [[ "$model" == "hky300" || "$model" == "hky10k" ]]; then
+  if [[ "$model" == "hky300" || "$model" == "hky10k" || "$model" == "treeprior" ]]; then
     tail -1 "$(path_mf "$s")" | \
       awk '{printf "%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", \
 $1,$2,$3,$4,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16}' \
@@ -464,14 +472,16 @@ for s in "${dist_sizes[@]}"; do
     >> "$OUT_DIR/entropySummary.txt"
 done
 
-if [[ "$model" == "hky300" ]]; then
-  printf "ntaxa\tNJ\tstd\tvine\tstd\tbeast\tstd\tmrbayes\tstd\n" > "$OUT_DIR/rfSummary.txt"
+if [[ "$model" == "hky300" || "$model" == "treeprior" ]]; then
+  printf "ntaxa\tNJ\tstd\tvine\tstd\tbeast\tstd\tbeast-beagle\tstd\tmrbayes\tstd\tmrbayes-beagle\tstd\n" > "$OUT_DIR/rfSummary.txt"
   for i in "${!sizes[@]}" ; do
           s="${sizes[$i]}"
           printf "%s\t" $s >> "$OUT_DIR/rfSummary.txt"
-          python rf-mean-and-sd.py $ROOT/${s}taxa/eval.all.rf.txt | awk '{printf "%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", $3, $4, $7, $8, $9, $10, $11, $12}' >> "$OUT_DIR/rfSummary.txt"
+          python rf-mean-and-sd.py $ROOT/${s}taxa/eval.all.rf.txt | awk '{printf "%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", $3, $4, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16}' >> "$OUT_DIR/rfSummary.txt"
       done
+fi
 
+if [[ "$model" == "hky300" ]]; then
   printf "d\tvine\tstd\tbeast\ttime\tstd\tvineH\tstd\ttimeH\tstd\n" > "$OUT_DIR/dimSummary25.txt"
   for i in "${!dims[@]}" ; do
       SUB="${dims[$i]}"
@@ -495,6 +505,5 @@ if [[ "$model" == "hky300" ]]; then
   done
 
 fi
-
 
 echo "Wrote summaries to: $OUT_DIR"

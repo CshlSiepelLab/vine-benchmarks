@@ -49,10 +49,7 @@ method_palette <- c(
   beast     = "#59A14F",
   "beast-beagle" = "#8BC184",
   mrbayes   = "#E15759",
-  "mrbayes-beagle" = "#E98A8C",
-  dodonaphy = "#B07AA1",
-  geophy    = "#EDC948",
-  vaiphy    = "#76B7B2"
+  "mrbayes-beagle" = "#E98A8C"
 )
 
 method_labels <- c(
@@ -61,10 +58,7 @@ method_labels <- c(
   beast     = "BEAST2",
   "beast-beagle" = "BEAST2 + BEAGLE",
   mrbayes   = "MrBayes",
-  "mrbayes-beagle" = "MrBayes + BEAGLE",
-  dodonaphy = "Dodonaphy",
-  geophy    = "GeoPhy",
-  vaiphy    = "VaiPhy"
+  "mrbayes-beagle" = "MrBayes + BEAGLE"
 )
 
 label_map <- function(keys) {
@@ -80,8 +74,8 @@ rf <- read.table(file.path(data_dir, "rfSummary.txt"), header = TRUE)
 
 ## Identify the std columns in order (std, std.1, std.2, ...)
 std_cols <- grep("^std", names(rf))
-if (length(std_cols) < 4) {
-  stop("Expected at least 4 'std' columns (for NJ, vine, beast, mrbayes). Found: ",
+if (length(std_cols) < 6) {
+  stop("Expected at least 6 'std' columns (for NJ, vine, beast, beast-beagle, mrbayes, mrbayes-beagle). Found: ",
       length(std_cols))
 }
 
@@ -89,12 +83,14 @@ if (length(std_cols) < 4) {
 rf_long <- rbind(
   data.frame(ntaxa  = rf$ntaxa, method = "vine", mean   = rf$vine, sd     = rf[[std_cols[2]]]),
   data.frame(ntaxa  = rf$ntaxa, method = "beast", mean   = rf$beast, sd     = rf[[std_cols[3]]]),
-  data.frame(ntaxa  = rf$ntaxa, method = "mrbayes", mean   = rf$mrbayes, sd     = rf[[std_cols[4]]])
+  data.frame(ntaxa  = rf$ntaxa, method = "beast-beagle", mean   = rf$beast.beagle, sd     = rf[[std_cols[4]]]),
+  data.frame(ntaxa  = rf$ntaxa, method = "mrbayes", mean   = rf$mrbayes, sd     = rf[[std_cols[5]]]),
+  data.frame(ntaxa  = rf$ntaxa, method = "mrbayes-beagle", mean   = rf$mrbayes.beagle, sd     = rf[[std_cols[6]]])
 )
 
 rf_long$method <- factor(
   rf_long$method,
-  levels = c("vine","beast","mrbayes")
+  levels = c("vine","beast","beast-beagle","mrbayes","mrbayes-beagle")
 )
 
 # Error bars, truncated at zero on the lower end
@@ -132,4 +128,4 @@ prf <- ggplot(rf_long, aes(x = factor(ntaxa), y = mean, fill = method)) +
 # ================================================================
 save_pdf(prf,
          file.path(script_dir, "hky300_rf_bars.pdf"),
-         width = 3, height = 3)
+         width = 6, height = 3)

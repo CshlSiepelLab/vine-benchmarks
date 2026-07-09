@@ -313,15 +313,19 @@ tree.%.beast-beagle.mf.txt: tree.%.beast-beagle.nwk tree.%.heldout.fa tree.%.bea
 # Use the post-burn-in posterior mean kappa for both MrBayes modes.
 tree.%.mrbayes.mf.txt: tree.%.mrbayes.nwk tree.%.heldout.fa \
                        tree.%.mrbayes.nex.p
-	kappa=`awk '\
+	kappa=`awk -v p=$(BURNIN_PCT) '\
 	  $$1=="Gen"{\
 	    for(i=1;i<=NF;i++) if($$i=="kappa") c=i; next\
 	  }\
-	  $$1!="Gen" && c { values[++n]=$$c }\
-	  END {\
-	    first=int(n*$(BURNIN_PCT)/100)+1;\
-	    for(i=first;i<=n;i++) { s+=values[i]; kept++ }\
-	    if(kept) printf "%.6f\\n", s/kept\
+	  $$1!="Gen" && c { vals[++n]=$$c }\
+	  END { \
+	    if(n){ \
+	      skip=int(n*p/100); \
+	      if(skip>=n) skip=n-1; \
+	      sum=0; cnt=0; \
+	      for(i=skip+1;i<=n;i++){ sum+=vals[i]; cnt++ } \
+	      if(cnt) printf "%.6f\\n", sum/cnt; \
+	    } \
 	  }\
 	' tree.$*.mrbayes.nex.p` ;\
 	$(VINE_BIN)/evalTrees tree.$*.mrbayes.nwk -f tree.$*.heldout.fa \
@@ -329,15 +333,19 @@ tree.%.mrbayes.mf.txt: tree.%.mrbayes.nwk tree.%.heldout.fa \
 
 tree.%.mrbayes-beagle.mf.txt: tree.%.mrbayes-beagle.nwk tree.%.heldout.fa \
                               tree.%.mrbayes-beagle.nex.p
-	kappa=`awk '\
+	kappa=`awk -v p=$(BURNIN_PCT) '\
 	  $$1=="Gen"{\
 	    for(i=1;i<=NF;i++) if($$i=="kappa") c=i; next\
 	  }\
-	  $$1!="Gen" && c { values[++n]=$$c }\
-	  END {\
-	    first=int(n*$(BURNIN_PCT)/100)+1;\
-	    for(i=first;i<=n;i++) { s+=values[i]; kept++ }\
-	    if(kept) printf "%.6f\\n", s/kept\
+	  $$1!="Gen" && c { vals[++n]=$$c }\
+	  END { \
+	    if(n){ \
+	      skip=int(n*p/100); \
+	      if(skip>=n) skip=n-1; \
+	      sum=0; cnt=0; \
+	      for(i=skip+1;i<=n;i++){ sum+=vals[i]; cnt++ } \
+	      if(cnt) printf "%.6f\\n", sum/cnt; \
+	    } \
 	  }\
 	' tree.$*.mrbayes-beagle.nex.p` ;\
 	$(VINE_BIN)/evalTrees tree.$*.mrbayes-beagle.nwk -f tree.$*.heldout.fa \

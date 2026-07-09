@@ -11,8 +11,8 @@ MAIN_DIR := /local/storage/no-backup/vine-benchmarks
 # Relative paths
 BIN := $(MAIN_DIR)/bin
 PHAST_BIN := $(BIN)/phast/bin
-# VINE_BIN := $(BIN)/vine/bin
-VINE_BIN := /home/staklins/projects/vine_project/vine/bin
+VINE_BIN := $(BIN)/vine/bin
+#VINE_BIN := /home/staklins/projects/vine_project/vine/bin
 BEAST := $(BIN)/beast/bin/beast
 CONTAINERS := $(MAIN_DIR)/containers
 CASSIOPEIA_SIF := $(CONTAINERS)/cassiopeia/cassiopeia.sif
