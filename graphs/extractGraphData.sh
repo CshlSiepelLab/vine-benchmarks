@@ -477,7 +477,20 @@ if [[ "$model" == "hky300" || "$model" == "treeprior" ]]; then
   for i in "${!sizes[@]}" ; do
           s="${sizes[$i]}"
           printf "%s\t" $s >> "$OUT_DIR/rfSummary.txt"
-          python rf-mean-and-sd.py $ROOT/${s}taxa/eval.all.rf.txt | awk '{printf "%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", $3, $4, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16}' >> "$OUT_DIR/rfSummary.txt"
+          python "$script_dir/rf-mean-and-sd.py" "$ROOT/${s}taxa/eval.all.rf.txt" | awk '{printf "%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", $3, $4, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16}' >> "$OUT_DIR/rfSummary.txt"
+      done
+fi
+
+# Branch-score distance (point / posterior-mean-tree BSD, normalized by true-tree
+# length).  eval.all.bsd.txt already carries the grand row (per-method mean, SD
+# across replicates) after the "-----" line, so just extract that row.  Columns
+# selected mirror rfSummary: NJ, vine, beast, beast-beagle, mrbayes, mrbayes-beagle.
+if [[ "$model" == "hky300" || "$model" == "treeprior" ]]; then
+  printf "ntaxa\tNJ\tstd\tvine\tstd\tbeast\tstd\tbeast-beagle\tstd\tmrbayes\tstd\tmrbayes-beagle\tstd\n" > "$OUT_DIR/bsdSummary.txt"
+  for i in "${!sizes[@]}" ; do
+          s="${sizes[$i]}"
+          printf "%s\t" $s >> "$OUT_DIR/bsdSummary.txt"
+          grep -A1 '^-----' $ROOT/${s}taxa/eval.all.bsd.txt | tail -1 | awk '{printf "%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", $3, $4, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16}' >> "$OUT_DIR/bsdSummary.txt"
       done
 fi
 

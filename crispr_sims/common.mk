@@ -20,6 +20,7 @@ LAML_SIF := $(CONTAINERS)/laml/laml.sif
 BEAM_TEMPLATE := $(MAIN_DIR)/crispr_sims/beam_template.xml
 
 MCMC_ESS_THRESHOLD := 400
+METRIC_TREE_COUNT := 1000
 
 # for collapsing
 PYTHON_SRC := $(MAIN_DIR)/python/src
@@ -30,12 +31,15 @@ INDELS := $(patsubst tree.%.true.nwk,tree.%.indels.csv,$(TREES))
 LNLS := $(patsubst tree.%.true.nwk,tree.%.lnl,$(TREES))
 TIMES := $(patsubst tree.%.true.nwk,tree.%.time,$(TREES))
 EVALRF := $(patsubst tree.%.true.nwk,tree.%.rf,$(TREES))
+EVALBSD := $(patsubst tree.%.true.nwk,tree.%.bsd,$(TREES))
 LAML_TREES := $(patsubst tree.%.true.nwk,tree.%.laml_trees.nwk,$(TREES))
 VINE_TREES := $(patsubst tree.%.true.nwk,tree.%.var.nwk,$(TREES))
 BEAM_TERM := $(patsubst tree.%.true.nwk,tree.%.beam.term,$(TREES))
 CHECK_LNLS := $(patsubst tree.%.true.nwk,tree.%.checklnl,$(TREES))
 
 all: summary.time.txt summary.lnl.txt eval.all.rf.txt
+
+bsd: eval.all.bsd.txt
 
 simulate: $(TREES) $(INDELS)
 laml: $(LAML_TREES)
@@ -131,11 +135,16 @@ tree.%.beam.trees tree.%.beam.log tree.%.beam.term: tree.%.indels.tsv tree.%.cas
 
 # Convert beam nexus output to newick
 BURNIN := 0.1
-tree.%.beam.nwk tree.%.beam.burninRemoved.nwk: tree.%.beam.trees
+tree.%.beam.nwk tree.%.beam.burninRemoved.nwk: tree.%.beam.trees $(MAIN_DIR)/crispr_sims/common.mk
 	$(BIN)/nex2nwk tree.$*.beam.trees tree.$*.beam.nwk
 	numTrees=$$(wc -l < tree.$*.beam.nwk) ; \
 	burnin=$$(awk -v n=$$numTrees -v b=$(BURNIN) 'BEGIN{printf "%d\n", n*b}') ; \
-	tail -n +$$((burnin+1)) tree.$*.beam.nwk > tree.$*.beam.burninRemoved.nwk
+	remaining=$$((numTrees - burnin)) ; \
+	target=$(METRIC_TREE_COUNT) ; \
+	if [ $$remaining -lt $$target ]; then target=$$remaining; fi ; \
+	awk -v skip=$$burnin -v n=$$remaining -v target=$$target \
+	  'NR <= skip {next} {j = NR - skip; if (int(j*target/n) > int((j-1)*target/n)) print}' \
+	  tree.$*.beam.nwk > tree.$*.beam.burninRemoved.nwk
 
 # Extract lnls for all methods per tree
 tree.%.lnl: tree.%.laml_params.txt tree.%.var.log tree.%.beam.log
@@ -176,9 +185,9 @@ tree.%.true.rf.txt: tree.%.true.nwk tree.%.true.nwk
 	$(VINE_BIN)/evalTrees tree.$*.true.nwk -t tree.$*.true.nwk > $@
 
 tree.%.laml.rf.txt: tree.%.laml_trees.nwk tree.%.true.nwk
-	sed 's/^\[&R\]//g' tree.$*.laml_trees.nwk > tmp.nwk
-	$(VINE_BIN)/evalTrees tmp.nwk -t tree.$*.true.nwk > $@
-	rm tmp.nwk
+	sed 's/^\[&R\]//g' tree.$*.laml_trees.nwk > tmp.$*.laml.rf.nwk
+	$(VINE_BIN)/evalTrees tmp.$*.laml.rf.nwk -t tree.$*.true.nwk > $@
+	rm -f tmp.$*.laml.rf.nwk
 
 tree.%.beam.rf.txt: tree.%.beam.burninRemoved.nwk tree.%.true.nwk
 	$(VINE_BIN)/evalTrees tree.$*.beam.burninRemoved.nwk -t tree.$*.true.nwk > $@
@@ -209,6 +218,38 @@ eval.all.rf.txt: $(EVALRF)
 	  x3/(NR-1), sqrt(x3s/(NR-1)), x4/(NR-1), sqrt(x4s/(NR-1))}' \
 	  tmp > $@; \
 	rm -f tmp
+
+# Branch-score distance (BSD, Kuhner-Felsenstein) to the true tree.
+# The aggregate reports posterior-mean-tree BSD normalized by true-tree length.
+tree.%.true.bsd.txt: tree.%.true.nwk
+	$(VINE_BIN)/evalTrees tree.$*.true.nwk -b tree.$*.true.nwk > $@
+
+tree.%.var.bsd.txt: tree.%.var.nwk tree.%.true.nwk
+	$(VINE_BIN)/evalTrees tree.$*.var.nwk -b tree.$*.true.nwk > $@
+
+tree.%.laml.bsd.txt: tree.%.laml_trees.nwk tree.%.true.nwk
+	sed 's/^\[&R\]//g' tree.$*.laml_trees.nwk > tmp.$*.laml.bsd.nwk
+	$(VINE_BIN)/evalTrees tmp.$*.laml.bsd.nwk -b tree.$*.true.nwk > $@
+	rm -f tmp.$*.laml.bsd.nwk
+
+tree.%.beam.bsd.txt: tree.%.beam.burninRemoved.nwk tree.%.true.nwk
+	$(VINE_BIN)/evalTrees tree.$*.beam.burninRemoved.nwk -b tree.$*.true.nwk > $@
+
+tree.%.bsd: tree.%.true.bsd.txt tree.%.var.bsd.txt tree.%.laml.bsd.txt tree.%.beam.bsd.txt
+	rm -f $@
+	for file in $^ ; do \
+		echo -n "$$file     " >> $@ ;\
+		awk '/Point.*BSD:/ {pt=$$NF} /Reference tree length:/ {rl=$$NF} END {printf "%f\t%f\n", pt, rl}' $${file} >> $@ ;\
+	done
+
+eval.all.bsd.txt: $(EVALBSD)
+	echo "true (sd) vine (sd) laml (sd) beam (sd)" > tmpbsd
+	for file in $^ ; do \
+		awk '{printf "%f\t", ($$3>0 ? $$2/$$3 : 0)}' "$$file" >> tmpbsd ;\
+		echo >> tmpbsd ;\
+	done
+	awk '{for(i=1;i<=4;i++){x[i]+=$$i; xs[i]+=$$i*$$i} print $$0} END {printf "-----\n"; for(i=1;i<=4;i++){m=x[i]/(NR-1); v=xs[i]/(NR-1)-m*m; if(v<0)v=0; printf "%f\t%f%s", m, sqrt(v), (i<4 ? "\t" : "\n")}}' tmpbsd > $@
+	rm -f tmpbsd
 
 tree.%.checklnl: tree.%.indels.tsv tree.%.laml_trees.nwk
 	$(VINE_BIN)/crisprLnl tree.$*.indels.tsv tree.$*.laml_trees.nwk tree.$*.laml_params.txt > $@
@@ -244,6 +285,9 @@ clean_not_converged_beam:
 			fi; \
 		fi; \
 	done
+
+clean_rf:
+	rm eval.all.rf.txt *.rf *.rf.txt
 
 archive_summary:
 	archive_dir=archive_summary.$$(date +%Y-%m-%d_%H:%M:%S); \

@@ -1,18 +1,20 @@
 #!/usr/bin/env Rscript
+# Supplement figure S4: effect of embedding dimension d on VINE accuracy
+# (Delta lnl vs. BEAST) and runtime, for 25 taxa (A) and 50 taxa (B).
+# Each panel overlays the Euclidean and hyperbolic geometries (previously
+# shown as two separate figures / four panels).  Left axis (orange): Delta lnl
+# = VINE - BEAST held-out log-likelihood; bars point down when VINE is worse.
+# Right axis (green): VINE runtime.  Darker bars = Euclidean, lighter =
+# hyperbolic.  Error bars are one SD over ten replicates.
 
 suppressMessages(library(ggplot2))
 suppressMessages(library(scales))
 suppressMessages(library(patchwork))
 suppressMessages(library(dplyr))
 
-# Resolve script directory so we can build absolute paths
 args_all <- commandArgs(trailingOnly = FALSE)
 file_arg <- sub("^--file=", "", args_all[grep("^--file=", args_all)])
-script_dir <- if (length(file_arg) > 0) {
-  dirname(normalizePath(file_arg))
-} else {
-  getwd()
-}
+script_dir <- if (length(file_arg) > 0) dirname(normalizePath(file_arg)) else getwd()
 
 data_dir <- file.path(dirname(script_dir), "hky300-data")
 out_dir <- script_dir
@@ -23,14 +25,12 @@ save_pdf <- function(plot, filename, width = 3, height = 3) {
            units = "in", device = cairo_pdf)
   } else {
     pdf(filename, width = width, height = height, family = "Helvetica")
-    print(plot)
-    dev.off()
+    print(plot); dev.off()
   }
 }
 
-# ------------ Theme ------------
 theme_set(
-  theme_minimal(base_size = 8) +
+  theme_minimal(base_size = 8, base_family = "Helvetica") +
     theme(
       plot.title  = element_text(size = 9, face = "bold"),
       axis.title  = element_text(size = 9),
@@ -43,99 +43,80 @@ theme_set(
 )
 
 panel_tag_theme <- theme(
-  plot.tag = element_text(
-    size = 12, face = "bold", family = "Helvetica"
-  ),
+  plot.tag = element_text(size = 12, face = "bold", family = "Helvetica"),
   plot.tag.position = c(0.01, 0.99)
 )
 
-# ================================================================
-# Dimensionality helper
-# ================================================================
-make_dim_panel <- function(dims_file, lnl_cols, time_cols) {
+# Palette: metric by hue (orange = Delta lnl, green = time),
+# geometry by shade (dark = Euclidean, light = hyperbolic).
+pal <- c(d_euc = "#F28E2B", d_hyp = "#F9C79A",
+         t_euc = "#59A14F", t_hyp = "#A7D3A1")
+lab <- c(d_euc = "Δ lnl, Euclidean",  d_hyp = "Δ lnl, hyperbolic",
+         t_euc = "time, Euclidean",        t_hyp = "time, hyperbolic")
+orange <- "#F28E2B"; green <- "#59A14F"
+
+# ---- combined Euclidean + hyperbolic dual-axis panel ----
+# Delta lnl (left, orange): mean +/- SD over replicates.
+# time (right, green): median with IQR (Q1-Q3) whiskers -- robust to the
+# heavy-tailed hyperbolic convergence time (a minority of replicates
+# initialize with very large KLD and take many more iterations).
+# dims_file columns:
+#   d  dlnlE dlnlE_sd  timeE_med timeE_q1 timeE_q3  dlnlH dlnlH_sd  timeH_med timeH_q1 timeH_q3
+make_dim_panel2 <- function(dims_file) {
   dims <- read.table(file.path(data_dir, dims_file),
                      header = TRUE, check.names = FALSE)
-  dims$d <- suppressWarnings(
-    as.numeric(gsub(".*\\.D", "", as.character(dims[[1]])))
-  )
+  dval <- suppressWarnings(as.numeric(gsub(".*\\.D", "", as.character(dims[[1]]))))
 
-  delta_lnl <- dims[[lnl_cols[1]]] - dims[[lnl_cols[2]]]
-  sd_lnl    <- dims[[lnl_cols[3]]]
-  time_mean <- dims[[time_cols[1]]]
-  sd_time   <- dims[[time_cols[2]]]
+  d_euc <- dims$dlnlE; d_euc_sd <- dims$dlnlE_sd
+  d_hyp <- dims$dlnlH; d_hyp_sd <- dims$dlnlH_sd
+  te_m <- dims$timeE_med; te_lo <- dims$timeE_q1; te_hi <- dims$timeE_q3
+  th_m <- dims$timeH_med; th_lo <- dims$timeH_q1; th_hi <- dims$timeH_q3
 
-  num_max <- max(abs(delta_lnl), na.rm = TRUE)
-  den_max <- max(time_mean, na.rm = TRUE)
+  have_hyp <- any(is.finite(d_hyp) & (d_hyp != 0 | th_m != 0))
+
+  num_max <- max(abs(c(d_euc, if (have_hyp) d_hyp)) +
+                 c(d_euc_sd, if (have_hyp) d_hyp_sd), na.rm = TRUE)
+  den_max <- max(c(te_hi, if (have_hyp) th_hi), na.rm = TRUE)
   scale_factor <- if (is.finite(num_max) && is.finite(den_max) &&
-                      den_max > 0 && num_max > 0) {
-    num_max / den_max
-  } else {
-    1
-  }
+                      den_max > 0 && num_max > 0) num_max / den_max else 1
 
-  plotdata <- bind_rows(
-    data.frame(d = dims$d, metric = "delta_lnl",
-               mean_scaled = delta_lnl, sd_scaled = sd_lnl,
-               stringsAsFactors = FALSE),
-    data.frame(d = dims$d, metric = "time",
-               mean_scaled = time_mean * scale_factor,
-               sd_scaled = sd_time * scale_factor,
-               stringsAsFactors = FALSE)
+  mk <- function(series, height, lo, hi)
+    data.frame(d = dval, series = series, y = height, lo = lo, hi = hi)
+  rows <- list(
+    mk("d_euc", d_euc, d_euc - d_euc_sd, d_euc + d_euc_sd),
+    mk("t_euc", te_m * scale_factor, te_lo * scale_factor, te_hi * scale_factor)
   )
-  plotdata$metric <- factor(plotdata$metric,
-                            levels = c("delta_lnl", "time"))
+  if (have_hyp) rows <- c(rows, list(
+    mk("d_hyp", d_hyp, d_hyp - d_hyp_sd, d_hyp + d_hyp_sd),
+    mk("t_hyp", th_m * scale_factor, th_lo * scale_factor, th_hi * scale_factor)
+  ))
+  plotdata <- bind_rows(rows)
+  plotdata$series <- factor(plotdata$series, levels = c("d_euc","d_hyp","t_euc","t_hyp"))
 
-  ll_min_err <- suppressWarnings(
-    min(delta_lnl - sd_lnl, 0, na.rm = TRUE)
-  )
-  ll_breaks <- pretty(c(ll_min_err, 0), n = 6)
-  if (length(ll_breaks) > 1 && min(ll_breaks) > ll_min_err) {
-    step <- ll_breaks[2] - ll_breaks[1]
-    ll_breaks <- c(min(ll_breaks) - step, ll_breaks)
-  }
-  ymin <- min(ll_breaks, na.rm = TRUE)
+  ll_lo <- min(c(d_euc - d_euc_sd, if (have_hyp) d_hyp - d_hyp_sd, 0), na.rm = TRUE)
+  ll_hi <- max(c(d_euc + d_euc_sd, if (have_hyp) d_hyp + d_hyp_sd, 0), na.rm = TRUE)
+  ll_breaks <- pretty(c(ll_lo, ll_hi), n = 6)
+  t_hi_all <- max(c(te_hi, if (have_hyp) th_hi, 0), na.rm = TRUE)
+  t_breaks <- pretty(c(0, t_hi_all), n = 5)
+  axis_min <- min(ll_breaks, min(t_breaks) * scale_factor, na.rm = TRUE)
+  axis_max <- max(ll_breaks, max(t_breaks) * scale_factor, na.rm = TRUE)
 
-  t_max_err <- suppressWarnings(
-    max(time_mean + sd_time, 0, na.rm = TRUE)
-  )
-  t_breaks <- pretty(c(0, t_max_err), n = 6)
-  if (length(t_breaks) > 1 && max(t_breaks) < t_max_err) {
-    step <- t_breaks[2] - t_breaks[1]
-    t_breaks <- c(t_breaks, max(t_breaks) + step)
-  }
-  ymax <- max(t_breaks, na.rm = TRUE) * scale_factor
-
-  combined_breaks <- sort(
-    unique(c(ll_breaks, t_breaks * scale_factor))
-  )
-
-  dodge <- position_dodge(width = 0.6)
-  geom_palette <- c("delta_lnl" = "#F28E2B", "time" = "#59A14F")
-  orange <- unname(geom_palette["delta_lnl"])
-  green  <- unname(geom_palette["time"])
-
-  ggplot(plotdata,
-         aes(x = factor(d), y = mean_scaled, fill = metric)) +
-    geom_col(width = 0.45, position = dodge) +
-    geom_errorbar(
-      aes(ymin = mean_scaled - sd_scaled,
-          ymax = mean_scaled + sd_scaled),
-      width = 0.15, position = dodge
-    ) +
-    geom_hline(yintercept = 0, linetype = "dashed") +
-    scale_fill_manual(values = geom_palette, guide = "none") +
+  dodge <- position_dodge(width = 0.8)
+  ggplot(plotdata, aes(factor(d), y, fill = series)) +
+    geom_col(width = 0.7, position = dodge) +
+    geom_errorbar(aes(ymin = lo, ymax = hi),
+                  width = 0.25, linewidth = 0.3, position = dodge) +
+    geom_hline(yintercept = 0, linetype = "dashed", linewidth = 0.3) +
+    scale_fill_manual(values = pal, labels = lab, name = NULL,
+                      breaks = names(pal), drop = FALSE) +
     scale_x_discrete(expand = expansion(mult = c(0.06, 0.06))) +
     scale_y_continuous(
       name = expression(Delta ~ lnl),
-      limits = c(ymin, ymax),
-      breaks = combined_breaks,
+      limits = c(axis_min, axis_max), breaks = ll_breaks,
       labels = function(y) ifelse(y <= 0, as.character(y), ""),
-      expand = expansion(mult = c(0, 0)),
-      sec.axis = sec_axis(~ . / scale_factor,
-                          name = "time (s)",
-                          breaks = t_breaks)
+      sec.axis = sec_axis(~ . / scale_factor, name = "time (s)", breaks = t_breaks)
     ) +
-    labs(x = "Embedding Dimension (d)", title = NULL) +
+    labs(x = "Embedding Dimension (d)") +
     theme(
       axis.title.y       = element_text(color = orange),
       axis.text.y        = element_text(color = orange),
@@ -146,42 +127,15 @@ make_dim_panel <- function(dims_file, lnl_cols, time_cols) {
     )
 }
 
-# ================================================================
-# Dimensionality (standard): 25 taxa (A) + 50 taxa (B)
-# Columns: 2=vine, 3=std, 4=beast, 5=time, 6=std
-# ================================================================
-pdim_25 <- make_dim_panel("dimSummary25.txt",
-                          lnl_cols = c(2, 4, 3),
-                          time_cols = c(5, 6))
-pdim_50 <- make_dim_panel("dimSummary50.txt",
-                          lnl_cols = c(2, 4, 3),
-                          time_cols = c(5, 6))
+p25 <- make_dim_panel2("dimSummary25.txt")
+p50 <- make_dim_panel2("dimSummary50.txt")
 
-pdim_panels <- (pdim_25 + pdim_50) +
+fig <- (p25 + p50) +
   plot_layout(ncol = 2, guides = "collect") +
-  plot_annotation(tag_levels = "A",
-                  tag_prefix = "", tag_suffix = "")
-pdim_panels <- pdim_panels & panel_tag_theme
+  plot_annotation(tag_levels = "A")
+fig <- fig & panel_tag_theme & theme(legend.position = "right")
 
-save_pdf(pdim_panels, file.path(out_dir, "dims_panels.pdf"),
-         width = 6, height = 3)
-
-# ================================================================
-# Dimensionality H version: 25 taxa (A) + 50 taxa (B)
-# Columns: 7=vineH, 8=std, 4=beast, 9=timeH, 10=std
-# ================================================================
-pdimH_25 <- make_dim_panel("dimSummary25.txt",
-                           lnl_cols = c(7, 4, 8),
-                           time_cols = c(9, 10))
-pdimH_50 <- make_dim_panel("dimSummary50.txt",
-                           lnl_cols = c(7, 4, 8),
-                           time_cols = c(9, 10))
-
-pdimH_panels <- (pdimH_25 + pdimH_50) +
-  plot_layout(ncol = 2, guides = "collect") +
-  plot_annotation(tag_levels = "A",
-                  tag_prefix = "", tag_suffix = "")
-pdimH_panels <- pdimH_panels & panel_tag_theme
-
-save_pdf(pdimH_panels, file.path(out_dir, "dimsH_panels.pdf"),
-         width = 6, height = 3)
+save_pdf(fig, file.path(out_dir, "dims_combined_panels.pdf"), width = 8, height = 3)
+ggsave(file.path(out_dir, "dims_combined_panels.png"),
+       plot = fig, width = 8, height = 3, units = "in", dpi = 220)
+cat("wrote dims_combined_panels.pdf / .png\n")

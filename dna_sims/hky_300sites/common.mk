@@ -36,6 +36,7 @@ ML := $(patsubst %.true.nwk,%.ml.nwk,$(TREES))
 RAXML := $(patsubst %.true.nwk,%.raxml.term,$(TREES))
 VAR := $(patsubst %.true.nwk,%.var.nwk,$(TREES))
 EVALRF := $(patsubst tree.%.true.nwk,tree.%.rf,$(TREES))
+EVALBSD := $(patsubst tree.%.true.nwk,tree.%.bsd,$(TREES))
 EVALMF := $(patsubst tree.%.true.nwk,tree.%.mf,$(TREES))
 EVALDIST := $(patsubst tree.%.true.nwk,tree.%.dist,$(TREES))
 EVALENT := $(patsubst tree.%.true.nwk,tree.%.ent,$(TREES))
@@ -63,9 +64,11 @@ MRBAYESBEAGLENWK := $(patsubst %.true.nwk,%.mrbayes-beagle.nwk,$(TREES))
 # evalTrees stuff
 FAHELDOUT := $(patsubst %.true.nwk,%.heldout.fa,$(TREES))
 
-.PHONY: beast-beagle beast-beagle-nwk mrbayes-beagle mrbayes-beagle-nwk
+.PHONY: beast-beagle beast-beagle-nwk mrbayes-beagle mrbayes-beagle-nwk clean_rf clean_bsd
 
 all: eval.all.lnl.txt eval.all.rf.txt eval.all.mf.txt eval.all.time.txt eval.all.dist.txt eval.all.ent.txt
+
+bsd: eval.all.bsd.txt
 
 simulate: $(FA)
 max_lik: $(ML) $(RAXML)
@@ -528,6 +531,16 @@ clean:
 	rm -rf tree.*.mrbayes* tree.*.nex
 	rm -rf tree.*.raxml*
 
+# Remove only RF evaluation products so they can be recomputed from the
+# existing inferred trees with `make eval.all.rf.txt`.
+clean_rf:
+	rm -f eval.all.rf.txt tree.*.rf tree.*.rf.txt tmprf
+
+# Remove only BSD evaluation products so they can be recomputed from the
+# existing inferred trees with `make eval.all.bsd.txt`.
+clean_bsd:
+	rm -f eval.all.bsd.txt tree.*.bsd tree.*.bsd.txt tmpbsd
+
 archive_vine:
 	archive_dir="archive.vine_$$(date +%Y-%m-%d_%H:%M:%S)"; \
 	mkdir $$archive_dir; \
@@ -569,3 +582,51 @@ clean_mrbayes:
 
 clean-mrbayes-beagle:
 	rm -rf tree.*.mrbayes-beagle* tree.*.dist tree.*.time tree.*.lnl tree.*.mf tree.*.rf eval.all.*.txt
+
+# ============================================================
+# Branch-score distance (BSD, Kuhner-Felsenstein) to the true tree.
+# Each per-method file reports the per-sample BSD distribution plus the
+# "Point (posterior-mean-tree) BSD" (branch-length accuracy, insensitive to
+# posterior dispersion) and the reference tree length.  tree.%.bsd extracts
+# (point BSD, reference length) per method; eval.all.bsd.txt normalizes the
+# point BSD by the true-tree length and aggregates mean/SD across replicates.
+# ============================================================
+tree.%.true.bsd.txt: tree.%.true.nwk
+	$(VINE_BIN)/evalTrees tree.$*.true.nwk -b tree.$*.true.nwk > $@
+
+tree.%.nj.bsd.txt: tree.%.nj.nwk tree.%.true.nwk
+	$(VINE_BIN)/evalTrees tree.$*.nj.nwk -b tree.$*.true.nwk > $@
+
+tree.%.ml.bsd.txt: tree.%.ml.nwk tree.%.true.nwk
+	$(VINE_BIN)/evalTrees tree.$*.ml.nwk -b tree.$*.true.nwk > $@
+
+tree.%.var.bsd.txt: tree.%.var.nwk tree.%.true.nwk
+	$(VINE_BIN)/evalTrees tree.$*.var.nwk -b tree.$*.true.nwk > $@
+
+tree.%.beast.bsd.txt: tree.%.beast.nwk tree.%.true.nwk
+	$(VINE_BIN)/evalTrees tree.$*.beast.nwk -b tree.$*.true.nwk > $@
+
+tree.%.beast-beagle.bsd.txt: tree.%.beast-beagle.nwk tree.%.true.nwk
+	$(VINE_BIN)/evalTrees tree.$*.beast-beagle.nwk -b tree.$*.true.nwk > $@
+
+tree.%.mrbayes.bsd.txt: tree.%.mrbayes.nwk tree.%.true.nwk
+	$(VINE_BIN)/evalTrees tree.$*.mrbayes.nwk -b tree.$*.true.nwk > $@
+
+tree.%.mrbayes-beagle.bsd.txt: tree.%.mrbayes-beagle.nwk tree.%.true.nwk
+	$(VINE_BIN)/evalTrees tree.$*.mrbayes-beagle.nwk -b tree.$*.true.nwk > $@
+
+tree.%.bsd: tree.%.true.bsd.txt tree.%.nj.bsd.txt tree.%.ml.bsd.txt tree.%.var.bsd.txt tree.%.beast.bsd.txt tree.%.beast-beagle.bsd.txt tree.%.mrbayes.bsd.txt tree.%.mrbayes-beagle.bsd.txt
+	rm -f $@
+	for file in $^ ; do \
+		echo -n "$$file     " >> $@ ;\
+		awk '/Point.*BSD:/ {pt=$$NF} /Reference tree length:/ {rl=$$NF} END {printf "%f\t%f\n", pt, rl}' $${file} >> $@ ;\
+	done
+
+eval.all.bsd.txt: $(EVALBSD)
+	echo "true (sd) nj (sd) ml (sd) vine (sd) beast (sd) beast-beagle (sd) mrbayes (sd) mrbayes-beagle (sd)" > tmpbsd
+	for file in $^ ; do \
+		awk '{printf "%f\t", ($$3>0 ? $$2/$$3 : 0)}' "$$file" >> tmpbsd ;\
+		echo >> tmpbsd ;\
+	done
+	awk '{for(i=1;i<=8;i++){x[i]+=$$i; xs[i]+=$$i*$$i} print $$0} END {printf "-----\n"; for(i=1;i<=8;i++){m=x[i]/(NR-1); v=xs[i]/(NR-1)-m*m; if(v<0)v=0; printf "%f\t%f%s", m, sqrt(v), (i<8 ? "\t" : "\n")}}' tmpbsd > $@
+	rm -f tmpbsd

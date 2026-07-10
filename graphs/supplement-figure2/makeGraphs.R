@@ -1,4 +1,9 @@
 #!/usr/bin/env Rscript
+# Supplement figure S2: accuracy vs. number of taxa for the HKY/300-site
+# simulations.  Panel A: normalized Robinson-Foulds distance (topology).
+# Panel B: normalized branch-score distance (branch lengths), using the point
+# (posterior-mean-tree) BSD, which measures branch-length accuracy independent
+# of posterior dispersion.  Both are means +/- SD over 10 replicate datasets.
 
 suppressMessages(library(ggplot2))
 suppressMessages(library(scales))
@@ -30,7 +35,7 @@ save_pdf <- function(plot, filename, width = 3, height = 3) {
 
 # ------------ Theme ------------
 theme_set(
-  theme_minimal(base_size = 8) +
+  theme_minimal(base_size = 8, base_family = "Helvetica") +
     theme(
       plot.title  = element_text(size = 9, face = "bold"),
       axis.title  = element_text(size = 9),
@@ -67,65 +72,58 @@ label_map <- function(keys) {
   out
 }
 
-# ================================================================
-# Robinson-Foulds distances
-# ================================================================
-rf <- read.table(file.path(data_dir, "rfSummary.txt"), header = TRUE)
+methods <- c("vine", "beast", "beast-beagle", "mrbayes", "mrbayes-beagle")
 
-## Identify the std columns in order (std, std.1, std.2, ...)
-std_cols <- grep("^std", names(rf))
-if (length(std_cols) < 6) {
-  stop("Expected at least 6 'std' columns (for NJ, vine, beast, beast-beagle, mrbayes, mrbayes-beagle). Found: ",
-      length(std_cols))
+# ------------ Load a *Summary.txt table into long format ------------
+# Columns: ntaxa NJ std vine std beast std beast-beagle std mrbayes std
+#          mrbayes-beagle std   (NJ present but not plotted, matching prior S2)
+load_summary <- function(path) {
+  d <- read.table(path, header = TRUE)
+  std_cols <- grep("^std", names(d))
+  if (length(std_cols) < 6)
+    stop("Expected >= 6 'std' columns in ", path, "; found ", length(std_cols))
+  long <- rbind(
+    data.frame(ntaxa = d$ntaxa, method = "vine",           mean = d$vine,           sd = d[[std_cols[2]]]),
+    data.frame(ntaxa = d$ntaxa, method = "beast",          mean = d$beast,          sd = d[[std_cols[3]]]),
+    data.frame(ntaxa = d$ntaxa, method = "beast-beagle",   mean = d$beast.beagle,   sd = d[[std_cols[4]]]),
+    data.frame(ntaxa = d$ntaxa, method = "mrbayes",        mean = d$mrbayes,        sd = d[[std_cols[5]]]),
+    data.frame(ntaxa = d$ntaxa, method = "mrbayes-beagle", mean = d$mrbayes.beagle, sd = d[[std_cols[6]]])
+  )
+  long$method <- factor(long$method, levels = methods)
+  long$ymin <- pmax(long$mean - long$sd, 0)
+  long$ymax <- long$mean + long$sd
+  long
 }
 
-# Long format (absolute RF values)
-rf_long <- rbind(
-  data.frame(ntaxa  = rf$ntaxa, method = "vine", mean   = rf$vine, sd     = rf[[std_cols[2]]]),
-  data.frame(ntaxa  = rf$ntaxa, method = "beast", mean   = rf$beast, sd     = rf[[std_cols[3]]]),
-  data.frame(ntaxa  = rf$ntaxa, method = "beast-beagle", mean   = rf$beast.beagle, sd     = rf[[std_cols[4]]]),
-  data.frame(ntaxa  = rf$ntaxa, method = "mrbayes", mean   = rf$mrbayes, sd     = rf[[std_cols[5]]]),
-  data.frame(ntaxa  = rf$ntaxa, method = "mrbayes-beagle", mean   = rf$mrbayes.beagle, sd     = rf[[std_cols[6]]])
+make_bar <- function(long, ylab, tag) {
+  ggplot(long, aes(x = factor(ntaxa), y = mean, fill = method)) +
+    geom_col(position = position_dodge(width = 0.9)) +
+    geom_errorbar(aes(ymin = ymin, ymax = ymax), width = 0.2,
+                  position = position_dodge(width = 0.9)) +
+    labs(title = tag, x = "Number of Taxa", y = ylab, fill = "Method") +
+    scale_fill_manual(
+      values = method_palette[methods],
+      breaks = methods,
+      labels = label_map(methods)
+    ) +
+    scale_y_continuous(breaks = pretty_breaks(n = 8), limits = c(0, NA)) +
+    guides(fill = guide_legend(override.aes = list(width = 0.6)))
+}
+
+rf_long  <- load_summary(file.path(data_dir, "rfSummary.txt"))
+bsd_long <- load_summary(file.path(data_dir, "bsdSummary.txt"))
+
+prf  <- make_bar(rf_long,  "Normalized RF distance", "A")
+pbsd <- make_bar(bsd_long, "Normalized branch-score distance", "B")
+
+fig <- (prf + pbsd) + plot_layout(ncol = 2, guides = "collect")
+fig <- fig & theme(
+  legend.position = "right",
+  plot.title = element_text(size = 12, face = "bold", family = "Helvetica",
+                            hjust = 0, margin = margin(b = 5))
 )
 
-rf_long$method <- factor(
-  rf_long$method,
-  levels = c("vine","beast","beast-beagle","mrbayes","mrbayes-beagle")
-)
-
-# Error bars, truncated at zero on the lower end
-rf_long$ymin <- pmax(rf_long$mean - rf_long$sd, 0)
-rf_long$ymax <- rf_long$mean + rf_long$sd
-
-# Absolute y-limits: min = 0, max = max(mean + sd)
-y_max <- max(rf_long$ymax, na.rm = TRUE)
-ylim  <- c(0, y_max)
-
-# Plot (absolute RF distance; y starts at 0)
-prf <- ggplot(rf_long, aes(x = factor(ntaxa), y = mean, fill = method)) +
-  geom_col(position = position_dodge(width = 0.9)) +
-  geom_errorbar(aes(ymin = ymin, ymax = ymax),
-                width = 0.2,
-                position = position_dodge(width = 0.9)) +
-  labs(
-    x = "Number of Taxa",
-    y = "Normalized RF Distance",
-    fill = "Method"
-  ) +
-  scale_fill_manual(
-    values = method_palette[levels(rf_long$method)],
-    breaks = levels(rf_long$method),
-    labels = label_map(levels(rf_long$method))
-  ) +
-  scale_y_continuous(
-    breaks = pretty_breaks(n = 8)
-  ) +
-  guides(fill = guide_legend(override.aes = list(width = 0.6))) +
-  coord_cartesian(ylim = ylim)
-
-# ================================================================
-# Save
-# ================================================================
-save_pdf(prf,
-         file.path(script_dir, "hky300_rf_bars.pdf"),
-         width = 6, height = 3)
+save_pdf(fig, file.path(script_dir, "hky300_rf_bsd_bars.pdf"), width = 9, height = 3)
+ggsave(file.path(script_dir, "hky300_rf_bsd_bars.png"),
+       plot = fig, width = 9, height = 3, units = "in", dpi = 220)
+cat("wrote hky300_rf_bsd_bars.pdf / .png\n")

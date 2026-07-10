@@ -2,6 +2,11 @@
 
 suppressMessages(library(ggplot2))
 suppressMessages(library(scales))
+suppressMessages(library(patchwork))
+
+args_all <- commandArgs(trailingOnly = FALSE)
+file_arg <- sub("^--file=", "", args_all[grep("^--file=", args_all)])
+script_dir <- if (length(file_arg) > 0) dirname(normalizePath(file_arg)) else getwd()
 
 ## -------------------- Styling suitable for 3"x3" panels --------------------
 theme_set(
@@ -80,68 +85,50 @@ melt_mean_sd <- function(df, methods, ntaxa_col = "ntaxa", scale_by = NULL) {
   do.call(rbind, out)
 }
 
-rf <- read.table("rfSummary.txt", header = TRUE)
-
-## Identify the two std columns in order (std, std.1, ...)
-std_cols <- grep("^std", names(rf))
-if (length(std_cols) < 2) {
-  stop("Expected at least 2 'std' columns (for vine, beam, laml). Found: ",
-       length(std_cols))
+load_summary <- function(filename) {
+  d <- read.table(file.path(script_dir, filename), header = TRUE)
+  std_cols <- grep("^std", names(d))
+  if (length(std_cols) < 3) stop("Expected three std columns in ", filename)
+  out <- rbind(
+    data.frame(ntaxa=d$ntaxa, method="vine", mean=d$vine, sd=d[[std_cols[1]]]),
+    data.frame(ntaxa=d$ntaxa, method="laml", mean=d$laml, sd=d[[std_cols[2]]]),
+    data.frame(ntaxa=d$ntaxa, method="beam", mean=d$beam, sd=d[[std_cols[3]]])
+  )
+  out$method <- factor(out$method, levels=c("vine", "beam", "laml"))
+  out$ymin <- pmax(out$mean - out$sd, 0)
+  out$ymax <- out$mean + out$sd
+  out
 }
 
-# Long format (absolute RF values)
-rf_long <- rbind(
-  data.frame(
-    ntaxa  = rf$ntaxa,
-    method = "vine",
-    mean   = rf$vine,
-    sd     = rf[[std_cols[1]]]
-  ),
-  data.frame(
-    ntaxa  = rf$ntaxa,
-    method = "beam",
-    mean   = rf$beam,
-    sd     = rf[[std_cols[2]]]
-  ),
-  data.frame(
-    ntaxa  = rf$ntaxa,
-    method = "laml",
-    mean   = rf$laml,
-    sd     = rf[[std_cols[3]]]
-  )
-)
-
-rf_long$method <- factor(rf_long$method, levels = c("vine", "beam", "laml"))
-
-# Error bars, truncated at zero on the lower end
-rf_long$ymin <- pmax(rf_long$mean - rf_long$sd, 0)
-rf_long$ymax <- rf_long$mean + rf_long$sd
-
-# Absolute y-limits: min = 0, max = max(mean + sd)
-y_max <- max(rf_long$ymax, na.rm = TRUE)
-ylim  <- c(0, y_max)
-
-# Plot (absolute RF distance; y starts at 0)
-pmf <- ggplot(rf_long, aes(x = factor(ntaxa), y = mean, fill = method)) +
+make_bar <- function(long, ylab, tag) {
+  methods <- levels(long$method)
+  ggplot(long, aes(x = factor(ntaxa), y = mean, fill = method)) +
   geom_col(position = position_dodge(width = 0.9)) +
   geom_errorbar(aes(ymin = ymin, ymax = ymax),
                 width = 0.2,
                 position = position_dodge(width = 0.9)) +
   labs(
+    title = tag,
     x = "Number of Taxa",
-    y = "Normalized RF Distance",
+    y = ylab,
     fill = "Method"
   ) +
   scale_fill_manual(
-    values = method_palette[levels(rf_long$method)],
-    breaks = levels(rf_long$method),
-    labels = label_map(levels(rf_long$method))
-  ) +
-  scale_y_continuous(
-    breaks = pretty_breaks(n = 8)
+    values = method_palette[methods],
+    breaks = methods,
+    labels = label_map(methods)
   ) +
   guides(fill = guide_legend(override.aes = list(width = 0.6))) +
-  coord_cartesian(ylim = ylim)
+  scale_y_continuous(breaks = pretty_breaks(n = 8), limits = c(0, NA))
+}
 
 ## -------------------- Save --------------------
-save_pdf(pmf, "rf_bars.pdf", width = 3, height = 3)
+prf <- make_bar(load_summary("rfSummary.txt"), "Normalized RF distance", "A")
+pbsd <- make_bar(load_summary("bsdSummary.txt"),
+                 "Normalized branch-score distance", "B")
+fig <- (prf + pbsd) + plot_layout(ncol = 2, guides = "collect")
+fig <- fig & theme(legend.position = "right",
+                   plot.title = element_text(size = 12, face = "bold", hjust = 0))
+output_file <- file.path(script_dir, sprintf("rf_bars_%s.pdf", format(Sys.Date(), "%m%d%y")))
+save_pdf(fig, output_file, width = 9, height = 3)
+cat("wrote", output_file, "\n")
