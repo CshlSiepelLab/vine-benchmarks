@@ -131,7 +131,7 @@ lnl_long_vine_noprior <- melt_mean_sd(lnl_base, methods = "vine",
                                       ntaxa_col = "ntaxa", scale_by = "ave")
 lnl_long_vine_noprior$method <- "vine_noprior"
 
-lnl_long_vine_prior <- melt_mean_sd(lnl_tp, methods = "vine",
+lnl_long_vine_prior <- melt_mean_sd(lnl_tp, methods = "vine-prior",
                                     ntaxa_col = "ntaxa", scale_by = "ave")
 lnl_long_vine_prior$method <- "vine_prior"
 
@@ -176,7 +176,7 @@ rf_long_vine_noprior <- melt_mean_sd(rf_base, methods = "vine",
                                      ntaxa_col = "ntaxa")
 rf_long_vine_noprior$method <- "vine_noprior"
 
-rf_long_vine_prior <- melt_mean_sd(rf_tp, methods = "vine",
+rf_long_vine_prior <- melt_mean_sd(rf_tp, methods = "vine-prior",
                                    ntaxa_col = "ntaxa")
 rf_long_vine_prior$method <- "vine_prior"
 
