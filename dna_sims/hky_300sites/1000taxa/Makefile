@@ -6,6 +6,6 @@ BEAST_MCMCLEN := 25000000
 MRBAYES_MCMCLEN := 25000000
 MCMC_PRINTFREQ := 2500
 VINE_NSAMP := 1000
-VAROPT?=--hky85 -s $(VINE_NSAMP) -v 0
+VAROPT?=--hky85 -s $(VINE_NSAMP) -v 0 --miniter 500
 
 include ../common.mk

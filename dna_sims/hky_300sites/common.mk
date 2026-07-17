@@ -585,11 +585,10 @@ clean-mrbayes-beagle:
 
 # ============================================================
 # Branch-score distance (BSD, Kuhner-Felsenstein) to the true tree.
-# Each per-method file reports the per-sample BSD distribution plus the
-# "Point (posterior-mean-tree) BSD" (branch-length accuracy, insensitive to
-# posterior dispersion) and the reference tree length.  tree.%.bsd extracts
-# (point BSD, reference length) per method; eval.all.bsd.txt normalizes the
-# point BSD by the true-tree length and aggregates mean/SD across replicates.
+# Each per-method file reports the BSD from every posterior draw to the true
+# tree.  tree.%.bsd extracts evalTrees' Mean (the posterior expectation) and
+# the reference-tree length; eval.all.bsd.txt normalizes that expectation by
+# the true-tree length and aggregates mean/SD across simulation replicates.
 # ============================================================
 tree.%.true.bsd.txt: tree.%.true.nwk
 	$(VINE_BIN)/evalTrees tree.$*.true.nwk -b tree.$*.true.nwk > $@
@@ -619,7 +618,7 @@ tree.%.bsd: tree.%.true.bsd.txt tree.%.nj.bsd.txt tree.%.ml.bsd.txt tree.%.var.b
 	rm -f $@
 	for file in $^ ; do \
 		echo -n "$$file     " >> $@ ;\
-		awk '/Point.*BSD:/ {pt=$$NF} /Reference tree length:/ {rl=$$NF} END {printf "%f\t%f\n", pt, rl}' $${file} >> $@ ;\
+		awk '/^Mean:/ {mean=$$2} /Reference tree length:/ {rl=$$NF} END {printf "%f\t%f\n", mean, rl}' $${file} >> $@ ;\
 	done
 
 eval.all.bsd.txt: $(EVALBSD)

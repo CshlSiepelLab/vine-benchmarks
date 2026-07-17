@@ -103,7 +103,7 @@ melt_mean_sd <- function(df, methods, ntaxa_col = "ntaxa",
 # ================================================================
 # Read data
 # ================================================================
-max_taxa <- 1000
+max_taxa <- 100
 
 lnl_base <- read.table(file.path(base_dir, "lnlSummary.txt"),
                        header = TRUE, check.names = FALSE)

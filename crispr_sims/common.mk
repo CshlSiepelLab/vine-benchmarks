@@ -37,9 +37,7 @@ VINE_TREES := $(patsubst tree.%.true.nwk,tree.%.var.nwk,$(TREES))
 BEAM_TERM := $(patsubst tree.%.true.nwk,tree.%.beam.term,$(TREES))
 CHECK_LNLS := $(patsubst tree.%.true.nwk,tree.%.checklnl,$(TREES))
 
-all: summary.time.txt summary.lnl.txt eval.all.rf.txt
-
-bsd: eval.all.bsd.txt
+all: summary.time.txt summary.lnl.txt eval.all.rf.txt eval.all.bsd.txt
 
 simulate: $(TREES) $(INDELS)
 laml: $(LAML_TREES)
@@ -220,7 +218,7 @@ eval.all.rf.txt: $(EVALRF)
 	rm -f tmp
 
 # Branch-score distance (BSD, Kuhner-Felsenstein) to the true tree.
-# The aggregate reports posterior-mean-tree BSD normalized by true-tree length.
+# The aggregate reports expected posterior BSD normalized by true-tree length.
 tree.%.true.bsd.txt: tree.%.true.nwk
 	$(VINE_BIN)/evalTrees tree.$*.true.nwk -b tree.$*.true.nwk > $@
 
@@ -239,7 +237,7 @@ tree.%.bsd: tree.%.true.bsd.txt tree.%.var.bsd.txt tree.%.laml.bsd.txt tree.%.be
 	rm -f $@
 	for file in $^ ; do \
 		echo -n "$$file     " >> $@ ;\
-		awk '/Point.*BSD:/ {pt=$$NF} /Reference tree length:/ {rl=$$NF} END {printf "%f\t%f\n", pt, rl}' $${file} >> $@ ;\
+		awk '/^Mean:/ {mean=$$2} /Reference tree length:/ {rl=$$NF} END {printf "%f\t%f\n", mean, rl}' $${file} >> $@ ;\
 	done
 
 eval.all.bsd.txt: $(EVALBSD)

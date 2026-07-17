@@ -51,6 +51,10 @@ summary.*
 *.dist
 vine-*.emb.tsv
 hky-graphs/
+*peak_memory*
+crispr_sims/2500taxa/*
+crispr_sims/5000taxa/*
+crispr_sims/10000taxa/*
 
 # Ignore backup files from text editors
 *~
@@ -99,3 +103,6 @@ runAltVine.sh
 
 # ignore pilot runs
 *pilot*
+*posterior_quality*
+*kl_pdist*
+*kl_topo*

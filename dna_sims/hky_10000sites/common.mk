@@ -30,6 +30,7 @@ NJ := $(patsubst %.true.nwk,%.nj.nwk,$(TREES))
 ML := $(patsubst %.true.nwk,%.ml.nwk,$(TREES))
 VAR := $(patsubst %.true.nwk,%.var.nwk,$(TREES))
 EVALRF := $(patsubst tree.%.true.nwk,tree.%.rf,$(TREES))
+EVALBSD := $(patsubst tree.%.true.nwk,tree.%.bsd,$(TREES))
 EVALMF := $(patsubst tree.%.true.nwk,tree.%.mf,$(TREES))
 EVALDIST := $(patsubst tree.%.true.nwk,tree.%.dist,$(TREES))
 LNL := $(patsubst tree.%.true.nwk,tree.%.lnl,$(TREES))
@@ -56,16 +57,18 @@ MRBAYESBEAGLENWK := $(patsubst %.true.nwk,%.mrbayes-beagle.nwk,$(TREES))
 # evalTrees stuff
 FAHELDOUT := $(patsubst %.true.nwk,%.heldout.fa,$(TREES))
 
-.PHONY: beast-beagle beast-beagle-nwk mrbayes-beagle mrbayes-beagle-nwk clean-mf
+.PHONY: beast-beagle beast-beagle-nwk mrbayes-beagle mrbayes-beagle-nwk bsd clean-mf
 
 all: eval.all.lnl.txt eval.all.rf.txt eval.all.mf.txt eval.all.time.txt eval.all.dist.txt
 
+bsd: eval.all.bsd.txt
 vine: $(VAR)
 infer: $(BEASTLOG) $(BEASTBEAGLELOG) $(MRBAYESLOG) $(MRBAYESBEAGLELOG) $(VAR)
 beast: $(BEASTLOG)
 beast-beagle: $(BEASTBEAGLELOG)
 mrbayes: $(MRBAYESLOG)
 mrbayes-beagle: $(MRBAYESBEAGLELOG)
+
 
 tree.%.true.nwk: 
 	$(BIN)/bdTree3 -b 1 -d 0.5 --oversample-k 3 --height 5 --min-edge 0.02 --expected-height $(EXPHEIGHT) --no-stem --ucln-sd 0.6 --target-stat median -n $(NTAXA) | sed 's/\[\&[UR]\] //' > $@
@@ -111,9 +114,20 @@ tree.%.beast-beagle.term tree.%.beast-beagle-tree.trees tree.%.beast-beagle.log:
 	"$(BEAST)" -beagle -working -D fastapath=tree.$*.fa -D mcmclength=$(BEAST_MCMCLEN) -D samplefreq=$(BEAST_MCMC_SAMPLEFREQ) -D printfreq=$(MCMC_PRINTFREQ) $< > tree.$*.beast-beagle.term
 
 tree.%.beast.nwk: tree.%.beast-tree.trees
-	python3 "$(PYTHON_SRC)/time2subs.py" $^ tree.$*.beast.tmp.nex
-	$(BIN)/convertTrees -i nexus tree.$*.beast.tmp.nex > $@
-	rm -f tree.$*.beast.tmp.nex
+	THIN=$$(( ($(BEAST_MCMCLEN) / $(BEAST_MCMC_SAMPLEFREQ)) * (100 - $(BURNIN_PCT)) / 100 / $(METRIC_TREE_COUNT) )); \
+	if [ "$$THIN" -lt 1 ]; then THIN=1; fi; \
+	RESAMPLE=$$(( $(BEAST_MCMC_SAMPLEFREQ) * THIN )); \
+	$(BEAST_BIN)/logcombiner -log $^ -o thinned.trees.$*.beast \
+	  -burnin $(BURNIN_PCT) -resample $$RESAMPLE
+	python3 "$(PYTHON_SRC)/time2subs.py" thinned.trees.$*.beast tree.$*.beast.tmp.nex
+	$(BIN)/convertTrees -i nexus tree.$*.beast.tmp.nex > tree.$*.beast.tmp.nwk
+	N=$$(awk 'NF{n++} END{print n}' tree.$*.beast.tmp.nwk); \
+	TARGET=$(METRIC_TREE_COUNT); \
+	if [ "$$N" -lt "$$TARGET" ]; then TARGET=$$N; fi; \
+	awk -v n="$$N" -v target="$$TARGET" \
+	  'NF{j++; if (int(j*target/n) > int((j-1)*target/n)) print}' \
+	  tree.$*.beast.tmp.nwk > $@
+	rm -f tree.$*.beast.tmp.nex tree.$*.beast.tmp.nwk thinned.trees.$*.beast
 
 tree.%.beast-beagle.nwk: tree.%.beast-beagle-tree.trees
 	THIN=$$(( ($(BEAST_MCMCLEN) / $(BEAST_MCMC_SAMPLEFREQ)) * (100 - $(BURNIN_PCT)) / 100 / $(METRIC_TREE_COUNT) )); \
@@ -387,11 +401,21 @@ tree.%.beast-beagle.dist.txt: tree.%.beast-beagle.nwk tree.%.true.dist.txt
 	python3 "$(PYTHON_SRC)/sumDists.py" $@.tmp tree.$*.true.dist.txt | grep -v '^#' > $@
 	rm -f $@.tmp
 
-tree.%.dist: tree.%.ml.dist.txt tree.%.var.dist.txt tree.%.beast.dist.txt tree.%.beast-beagle.dist.txt
+tree.%.mrbayes.dist.txt: tree.%.mrbayes.nwk tree.%.true.dist.txt
+	$(VINE_BIN)/evalTrees tree.$*.mrbayes.nwk > $@.tmp
+	python3 "$(PYTHON_SRC)/sumDists.py" $@.tmp tree.$*.true.dist.txt | grep -v '^#' > $@
+	rm -f $@.tmp
+
+tree.%.mrbayes-beagle.dist.txt: tree.%.mrbayes-beagle.nwk tree.%.true.dist.txt
+	$(VINE_BIN)/evalTrees tree.$*.mrbayes-beagle.nwk > $@.tmp
+	python3 "$(PYTHON_SRC)/sumDists.py" $@.tmp tree.$*.true.dist.txt | grep -v '^#' > $@
+	rm -f $@.tmp
+
+tree.%.dist: tree.%.ml.dist.txt tree.%.var.dist.txt tree.%.beast.dist.txt tree.%.beast-beagle.dist.txt tree.%.mrbayes.dist.txt tree.%.mrbayes-beagle.dist.txt
 	paste $^ > $@
 
 eval.all.dist.txt: $(EVALDIST)
-	cat $^ | awk '{print $$1, $$2, $$6, $$7, $$8, $$9, $$11, $$12, $$13, $$14, $$16, $$17, $$18, $$19}' | awk 'BEGIN {printf "ML_r2 ML_RMSE vine_r2 vine_RMSE vine_95CI vine_50CI beast_r2 beast_RMSE beast_95CI beast_50CI beast-beagle_r2 beast-beagle_RMSE beast-beagle_95CI beast-beagle_50CI\n"} {for(i=1;i<=NF;i++) x[i]+=$$i; print $$0} END{printf "-----\n"; for(i=1;i<=14;i++) printf "%f%s", x[i]/NR, (i<14 ? "\t" : "\n")}' > $@
+	cat $^ | awk '{print $$1, $$2, $$6, $$7, $$8, $$9, $$11, $$12, $$13, $$14, $$16, $$17, $$18, $$19, $$21, $$22, $$23, $$24, $$26, $$27, $$28, $$29}' | awk 'BEGIN {printf "ML_r2 ML_RMSE vine_r2 vine_RMSE vine_95CI vine_50CI beast_r2 beast_RMSE beast_95CI beast_50CI beast-beagle_r2 beast-beagle_RMSE beast-beagle_95CI beast-beagle_50CI mrbayes_r2 mrbayes_RMSE mrbayes_95CI mrbayes_50CI mrbayes-beagle_r2 mrbayes-beagle_RMSE mrbayes-beagle_95CI mrbayes-beagle_50CI\n"} {for(i=1;i<=NF;i++) x[i]+=$$i; print $$0} END{printf "-----\n"; for(i=1;i<=22;i++) printf "%f%s", x[i]/NR, (i<22 ? "\t" : "\n")}' > $@
 
 # (3) RF dist
 tree.%.var.rf.txt: tree.%.var.nwk tree.%.true.nwk
@@ -441,6 +465,54 @@ eval.all.mf.txt: $(EVALMF)
 		echo >> $@.tmp ;\
 	done
 	awk '{for(i=1;i<=NF;i+=2){if($$i!="nan") x[i]+=$$i; xs[i]+=($$(i+1)*$$(i+1))} print $$0} END {printf "-----\n"; for(i=1;i<=15;i+=2) printf "%f\t%f%s", x[i]/(NR-1), sqrt(xs[i]/(NR-1)), (i<15 ? "\t" : "\n")}' $@.tmp > $@
+	rm -f $@.tmp
+
+# Expected normalized Kuhner-Felsenstein branch-score distance.  evalTrees
+# reports the distance from every posterior draw to the true tree; extract its
+# Mean rather than the separate posterior-mean-tree point estimate.
+tree.%.true.bsd.txt: tree.%.true.nwk
+	$(VINE_BIN)/evalTrees $< -b $< > $@
+
+tree.%.nj.bsd.txt: tree.%.nj.nwk tree.%.true.nwk
+	$(VINE_BIN)/evalTrees $< -b $(word 2,$^) > $@
+
+tree.%.ml.bsd.txt: tree.%.ml.nwk tree.%.true.nwk
+	$(VINE_BIN)/evalTrees $< -b $(word 2,$^) > $@
+
+tree.%.var.bsd.txt: tree.%.var.nwk tree.%.true.nwk
+	$(VINE_BIN)/evalTrees $< -b $(word 2,$^) > $@
+
+tree.%.beast.bsd.txt: tree.%.beast.nwk tree.%.true.nwk
+	$(VINE_BIN)/evalTrees $< -b $(word 2,$^) > $@
+
+tree.%.beast-beagle.bsd.txt: tree.%.beast-beagle.nwk tree.%.true.nwk
+	$(VINE_BIN)/evalTrees $< -b $(word 2,$^) > $@
+
+tree.%.mrbayes.bsd.txt: tree.%.mrbayes.nwk tree.%.true.nwk
+	$(VINE_BIN)/evalTrees $< -b $(word 2,$^) > $@
+
+tree.%.mrbayes-beagle.bsd.txt: tree.%.mrbayes-beagle.nwk tree.%.true.nwk
+	$(VINE_BIN)/evalTrees $< -b $(word 2,$^) > $@
+
+tree.%.bsd: tree.%.true.bsd.txt tree.%.nj.bsd.txt tree.%.ml.bsd.txt \
+    tree.%.var.bsd.txt tree.%.beast.bsd.txt tree.%.beast-beagle.bsd.txt \
+    tree.%.mrbayes.bsd.txt tree.%.mrbayes-beagle.bsd.txt
+	rm -f $@
+	for file in $^; do \
+	  echo -n "$$file     " >> $@; \
+	  awk '/^Mean:/ {mean=$$2} /Reference tree length:/ {rl=$$NF} \
+	       END {printf "%f\t%f\n", mean, rl}' "$$file" >> $@; \
+	done
+
+eval.all.bsd.txt: $(EVALBSD)
+	echo "true (sd) nj (sd) ml (sd) vine (sd) beast (sd) beast-beagle (sd) mrbayes (sd) mrbayes-beagle (sd)" > $@.tmp
+	for file in $^; do \
+	  awk '{printf "%f\t", ($$3>0 ? $$2/$$3 : 0)}' "$$file" >> $@.tmp; \
+	  echo >> $@.tmp; \
+	done
+	awk '{for(i=1;i<=8;i++){x[i]+=$$i; xs[i]+=$$i*$$i} print} \
+	     END {print "-----"; for(i=1;i<=8;i++){m=x[i]/(NR-1); v=xs[i]/(NR-1)-m*m; \
+	       if(v<0)v=0; printf "%f\t%f%s",m,sqrt(v),(i<8?"\t":"\n")}}' $@.tmp > $@
 	rm -f $@.tmp
 
 # for use in debugging
