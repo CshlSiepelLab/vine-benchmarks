@@ -11,8 +11,8 @@ MAIN_DIR := /local/storage/no-backup/vine-benchmarks
 # Relative paths
 BIN := $(MAIN_DIR)/bin
 PHAST_BIN := $(BIN)/phast/bin
-VINE_BIN := $(BIN)/vine/bin
-#VINE_BIN := /home/staklins/projects/vine_project/vine/bin
+# VINE_BIN := $(BIN)/vine/bin
+VINE_BIN := /home/staklins/projects/vine_project/vine/bin
 BEAST := $(BIN)/beast/bin/beast
 CONTAINERS := $(MAIN_DIR)/containers
 CASSIOPEIA_SIF := $(CONTAINERS)/cassiopeia/cassiopeia.sif
@@ -98,21 +98,10 @@ tree.%.laml_trees.nwk tree.%.laml-time: tree.%.indels.csv tree.%.cass.nwk
 # Run vine
 tree.%.var.nwk tree.%.var.log tree.%.var-time: tree.%.indels.tsv
 	/usr/bin/time -o tree.$*.var-time $(VINE_BIN)/vine \
-		$(VAROPT) \
+		$(VAROPT) -s 1000 \
 		-i CRISPR tree.$*.indels.tsv \
 		--logf tree.$*.var.log \
 		--mean tree.$*.mean.nwk > tree.$*.var.nwk
-
-# use the collapsed version instead
-#tree.%.var.nwk tree.%.var.log tree.%.var-time: tree.%.collapsed.tsv 
-#	/usr/bin/time -o tree.$*.var-time $(VINE_BIN)/vine \
-#		$(VAROPT) \
-#		-i CRISPR tree.$*.collapsed.tsv \
-#		--log tree.$*.var.log \
-#		--mean tree.$*.mean.nwk > tree.$*.var.nwk
-
-# removing this for now
-#		--tree tree.$*.cass.nwk \
 
 
 # Run BEAM

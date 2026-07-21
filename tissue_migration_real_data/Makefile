@@ -281,7 +281,7 @@ quinn.%.cass.metient_90_graph_matrix.pdf: quinn.%.cass.metient_probability_graph
 # Run vine in tissue migration mode
 quinn.%.var.log quinn.%.var-time quinn.%.var.nwk quinn.%.var.dot quinn.%.var.nex: quinn.%.tsv quinn.%.tissues.expanded.csv
 	/usr/bin/time -o quinn.$*.var-time $(VINE) $(VAROPT) -j $(THREADS) -i CRISPR quinn.$*.tsv --logfile quinn.$*.var.log --mean quinn.$*.mean.nwk \
-	--migration quinn.$*.tissues.expanded.csv --primary LL --sample-graphs quinn.$*.var.dot --labeled-trees quinn.$*.var.nex > quinn.$*.var.nwk
+	--migration quinn.$*.tissues.expanded.csv --migration-rate-prior 0 --primary LL --sample-graphs quinn.$*.var.dot --labeled-trees quinn.$*.var.nex > quinn.$*.var.nwk
 
 # Get MCC tree from VINE output
 quinn.%.var.mcc.nex quinn.%.var.mcc.nwk: quinn.%.var.nex

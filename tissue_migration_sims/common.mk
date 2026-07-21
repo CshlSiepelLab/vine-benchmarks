@@ -20,8 +20,8 @@ MAIN_DIR := /local/storage/no-backup/vine-benchmarks
 PYTHON_SRC := $(MAIN_DIR)/python/src
 R_SRC := $(MAIN_DIR)/r/src
 BIN := $(MAIN_DIR)/bin
-VINE := $(BIN)/vine/bin/vine
-VINE_BIN := $(BIN)/vine/bin
+# VINE_BIN := $(BIN)/vine/bin
+VINE_BIN := /home/staklins/projects/vine_project/vine/bin
 BEAST := $(BIN)/beast/bin/beast
 TREEANNOTATOR := $(BIN)/beast/bin/treeannotator
 CONTAINERS := $(MAIN_DIR)/containers
@@ -32,7 +32,8 @@ MACH2_SIF := $(CONTAINERS)/mach2/mach2.sif
 LAML_SIF := $(CONTAINERS)/laml/laml.sif
 RPLOTTING_SIF := $(CONTAINERS)/rplotting/rplotting.sif
 
-VAROPT?=-M 400 -c 100 -v 0
+# VAROPT?=-s 1000 -v 3 --cov DIST --planar-flow --radial-flow
+VAROPT?=-s 10000 -v 0
 
 TREE_IDS := $(shell seq 1 $(NSAMP))
 TREES := $(addsuffix _cell_tree.nwk,$(addprefix tree.,$(TREE_IDS)))
@@ -57,21 +58,41 @@ LNLS := $(addsuffix .lnl,$(addprefix tree.,$(TREE_IDS)))
 LAMLTANGLEGRAMS := $(addsuffix .laml.tanglegram.pdf,$(addprefix tree.,$(TREE_IDS)))
 VINETANGLEGRAMS := $(addsuffix .var.tanglegram.pdf,$(addprefix tree.,$(TREE_IDS)))
 BEAMTANGLEGRAMS := $(addsuffix .beam.tanglegram.pdf,$(addprefix tree.,$(TREE_IDS)))
-EVALRF := $(addsuffix .rf,$(addprefix tree.,$(TREE_IDS)))
 
-all: $(TRUEGRAPHPLOTS) eval.all.time.pdf eval.all.50_prf.pdf eval.all.thresh_prf.pdf eval.all.lnl.pdf eval.all.rf.txt $(LAMLTANGLEGRAMS) $(VINETANGLEGRAMS) $(BEAMTANGLEGRAMS)
-time: eval.all.time.txt
+# LAML, Metient, MACH2, and BEAM are intentionally omitted for the largest datasets.
+# Keep the summary schemas stable by writing NA for their fixed columns below.
+AUX_METHODS_ENABLED := $(if $(filter 500 1000,$(NTAXA)),,1)
+BEAM_ENABLED := $(if $(filter 500 1000,$(NTAXA)),,1)
+COMMON_MK := $(lastword $(MAKEFILE_LIST))
+LNL_AUX_DEPS := $(if $(AUX_METHODS_ENABLED),tree.%.laml_params.txt)
+LNL_BEAM_DEPS := $(if $(BEAM_ENABLED),tree.%.beam.log)
+TIME_AUX_DEPS := $(if $(AUX_METHODS_ENABLED),tree.%.laml-time tree.%.metient-time tree.%.mach2-time)
+TIME_BEAM_DEPS := $(if $(BEAM_ENABLED),tree.%.beam.term)
+PRF_AUX_DEPS := $(if $(AUX_METHODS_ENABLED),tree.%.metient.precision_recall.csv tree.%.mach2.precision_recall.csv)
+PRF_BEAM_DEPS := $(if $(BEAM_ENABLED),tree.%.beam.precision_recall.csv)
+THRESH_AUX_PRFS := $(if $(AUX_METHODS_ENABLED),$(METIENTPRFS) $(MACH2PRFS))
+THRESH_BEAM_PRFS := $(if $(BEAM_ENABLED),$(BEAMPRFS))
+
+all: $(TRUEGRAPHPLOTS) eval.all.time.pdf eval.all.50_prf.pdf eval.all.thresh_prf.pdf eval.all.lnl.pdf
 simulate: $(TREES) $(MATRIXCSVS) $(TISSUECSVS) $(TRUEGRAPHPLOTS)
 cass: $(CASTREES)
+ifeq ($(AUX_METHODS_ENABLED),1)
 laml: $(LAMLTREES)
-vine: $(TRUEGRAPHPLOTS) $(VINEPROBGRAPHS)
-vine_migration: $(VINELOGS) $(VINEPROBGRAPHS)
-prep_beam: $(CASTREES) $(BEAMXMLS)
-beam: $(BEAMTERMS) $(BEAMPROBGRAPHS)
-beam_infer: $(BEAMTERMS)
 prep_metient: $(METIENTMETA)
 metient: $(METIENTPRFS)
 mach2: $(MACH2PRFS)
+else
+laml prep_metient metient mach2:
+	@echo "$@ is disabled for NTAXA=$(NTAXA)"
+endif
+vine: $(VINEPROBGRAPHS)
+ifeq ($(BEAM_ENABLED),1)
+prep_beam: $(BEAMXMLS)
+beam: $(BEAMTERMS) $(BEAMPROBGRAPHS)
+else
+prep_beam beam:
+	@echo "$@ is disabled for NTAXA=$(NTAXA)"
+endif
 
 # Simulate data
 tree.%_cell_tree.nwk tree.%_cell_tree.labeling tree.%_cell_tree.vertex.labeling tree.%_cell_tree.migrations tree.%_indel_character_matrix.tsv:
@@ -109,8 +130,8 @@ tree.%.cass.nwk: tree.%_indel_character_matrix.csv
 
 # Run VINE in tissue migration mode
 tree.%.var.log tree.%.var-time tree.%.var.nwk tree.%.var.dot tree.%.var.nex: tree.%_indel_character_matrix.tsv tree.%_cell_tree.labeling.csv
-	/usr/bin/time -o tree.$*.var-time $(VINE) $(VAROPT) -i CRISPR tree.$*_indel_character_matrix.tsv --logf tree.$*.var.log --mean tree.$*.var.mean.nwk \
-	--migration tree.$*_cell_tree.labeling.csv --primary P --sample-graphs tree.$*.var.dot --labeled-trees tree.$*.var.nex > tree.$*.var.nwk
+	/usr/bin/time -o tree.$*.var-time $(VINE_BIN)/vine $(VAROPT) -i CRISPR tree.$*_indel_character_matrix.tsv --logf tree.$*.var.log --mean tree.$*.var.mean.nwk \
+	--migration tree.$*_cell_tree.labeling.csv --migration-rate-prior 0 --primary P --sample-graphs tree.$*.var.dot --labeled-trees tree.$*.var.nex > tree.$*.var.nwk
 
 # Get MCC tree from VINE output
 tree.%.var.mcc.nex tree.%.var.mcc.nwk: tree.%.var.nex
@@ -298,43 +319,51 @@ tree.%.mach2.precision_recall.csv: tree.%.mach2_probability_graph.csv tree.%_cel
 		/mnt/files/tree.$*.mach2.precision_recall.csv
 
 
-# Extract lnls for BEAM and VINE
-tree.%.lnl: tree.%.laml_params.txt tree.%.var.log tree.%.beam.log
-	grep '^Negative' tree.$*.laml_params.txt | awk '{printf "%d\t-%f\t", $*, $$2}' > $@
+# Extract log likelihoods, using NA when methods are disabled.
+tree.%.lnl: tree.%.var.log $(LNL_BEAM_DEPS) $(LNL_AUX_DEPS) $(COMMON_MK)
+	@printf "%s\t" "$*" > $@; \
+	if [ "$(AUX_METHODS_ENABLED)" = "1" ]; then \
+		grep '^Negative' tree.$*.laml_params.txt | awk '{printf "-%f\t", $$2}' >> $@; \
+	else \
+		printf "NA\t" >> $@; \
+	fi
 	tail -1 tree.$*.var.log | awk '{printf "%f\t%f\t", $$11, $$21}' >> $@
-	grep -v '^#' tree.$*.beam.log | grep -v '^Sample' | \
-		awk '{a=$$(NF-4); b=$$(NF-3); s=a+b; if (NR==1 || s>max) {max=s; A=a; B=b}} END {printf "%f\t%f\n", A, B}' >> $@
+	@if [ "$(BEAM_ENABLED)" = "1" ]; then \
+		grep -v '^#' tree.$*.beam.log | grep -v '^Sample' | \
+			awk '{a=$$(NF-4); b=$$(NF-3); s=a+b; if (NR==1 || s>max) {max=s; A=a; B=b}} END {printf "%f\t%f\n", A, B}' >> $@; \
+	else \
+		printf "NA\tNA\n" >> $@; \
+	fi
 
 eval.all.lnl.txt: $(LNLS)
-	cat $(LNLS) | awk 'BEGIN{printf "cp\tlaml_tree\tvine_tree\tvine_mig\tbeam_tree\tbeam_mig\n"} {x1 += $$2; x2 += $$3; x3 += $$4; x4 += $$5; x5 += $$6; printf "%d\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\n", $$1, $$2, $$3, $$4, $$5, $$6} END {printf "-----------------------------------------\nall\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\n", x1/NR, x2/NR, x3/NR, x4/NR, x5/NR}' > $@
+	awk 'function avg(sum, n) { return n ? sprintf("%.2f", sum/n) : "NA" } \
+	     BEGIN { print "cp\tlaml_tree\tvine_tree\tvine_mig\tbeam_tree\tbeam_mig" } \
+	     { print; if ($$2 != "NA") { x1 += $$2; n1++ } \
+	       x2 += $$3; x3 += $$4; n++; \
+	       if ($$5 != "NA") { x4 += $$5; n4++ } \
+	       if ($$6 != "NA") { x5 += $$6; n5++ } } \
+	     END { print "-----------------------------------------"; \
+	       printf "all\t%s\t%.2f\t%.2f\t%s\t%s\n", \
+	              avg(x1, n1), x2/n, x3/n, avg(x4, n4), avg(x5, n5) }' $(LNLS) > $@
 
 eval.all.lnl.pdf: eval.all.lnl.txt
 	singularity exec --bind $(R_SRC):/mnt/scripts --bind ./:/mnt/files $(RPLOTTING_SIF) Rscript /mnt/scripts/plot_lnl.R /mnt/files/eval.all.lnl.txt /mnt/files/eval.all.lnl.pdf
 
-# ###
-# # LNL target without laml
-# tree.%.lnl: tree.%.var.log tree.%.beam.log
-# 	printf "NA\t" > $@
-# 	tail -1 tree.$*.var.log | awk '{printf "%f\t%f\t", $$11, $$19}' >> $@
-# 	grep -v '^#' tree.$*.beam.log | grep -v '^Sample' | \
-# 		awk '{a=$$(NF-4); b=$$(NF-3); s=a+b; if (NR==1 || s>max) {max=s; A=a; B=b}} END {printf "%f\t%f\n", A, B}' >> $@
-
-# eval.all.lnl.txt: $(LNLS)
-# 	cat $(LNLS) | awk 'BEGIN{printf "cp\tlaml_tree\tvine_tree\tvine_mig\tbeam_tree\tbeam_mig\n"} {x1 += $$2; x2 += $$3; x3 += $$4; x4 += $$5; printf "%d\tNA\t%.2f\t%.2f\t%.2f\t%.2f\n", NR, $$2, $$3, $$4, $$5} END {printf "-----------------------------------------\nall\tNA\t%.2f\t%.2f\t%.2f\t%.2f\n", x1/NR, x2/NR, x3/NR, x4/NR}' > $@
-# ###
-
-
 # Get times per simulation
 # For BEAM, we take the time at which ESS > $(BEAM_ESS_TARGET) ("convergence" point), not the total arbitrary chain length time
 # For other methods we use the total runtime as reported by the time command
-tree.%.time: tree.%.var-time tree.%.laml-time tree.%.metient-time tree.%.mach2-time tree.%.beam.term
+tree.%.time: tree.%.var-time $(TIME_BEAM_DEPS) $(TIME_AUX_DEPS) $(COMMON_MK)
 	@{ \
 	printf "%s\t" "$*" > $@; \
 	vine=$$(head -n 1 tree.$*.var-time | awk '{printf "%.3f", $$1}'); \
-	laml=$$(head -n 1 tree.$*.laml-time | awk '{printf "%.3f", $$1}'); \
-	metient=$$(head -n 1 tree.$*.metient-time | awk '{printf "%.3f", $$1}'); \
-	mach2=$$(head -n 1 tree.$*.mach2-time | awk '{printf "%.3f", $$1}'); \
-	beam=$$(awk '/\/Msamples/{ \
+	laml="NA"; metient="NA"; mach2="NA"; beam="NA"; beam_improvement="NA"; \
+	if [ "$(AUX_METHODS_ENABLED)" = "1" ]; then \
+		laml=$$(head -n 1 tree.$*.laml-time | awk '{printf "%.3f", $$1}'); \
+		metient=$$(head -n 1 tree.$*.metient-time | awk '{printf "%.3f", $$1}'); \
+		mach2=$$(head -n 1 tree.$*.mach2-time | awk '{printf "%.3f", $$1}'); \
+	fi; \
+	if [ "$(BEAM_ENABLED)" = "1" ]; then \
+		beam=$$(awk '/\/Msamples/{ \
 		n_last=$$1; x_last=$$NF; sub(/\/Msamples.*/,"",x_last); \
 		if (($$3+0)>$(BEAM_ESS_TARGET)) { n=n_last; x=x_last; found=1; exit } \
 	} \
@@ -345,145 +374,42 @@ tree.%.time: tree.%.var-time tree.%.laml-time tree.%.metient-time tree.%.mach2-t
 		if(match(x,/([0-9]+)m/,a)) m=a[1]; \
 		if(match(x,/([0-9]+)s/,a)) s=a[1]; \
 		printf "%.3f", (n/1e6) * (3600*h + 60*m + s) \
-	}' tree.$*.beam.term); \
-	beam_improvement=$$(echo "scale=6; $$beam / $$vine" | bc -l | awk '{printf "%.3f", $$1}'); \
+		}' tree.$*.beam.term); \
+		beam_improvement=$$(echo "scale=6; $$beam / $$vine" | bc -l | awk '{printf "%.3f", $$1}'); \
+	fi; \
 	echo -e "$$vine\t$$laml\t$$metient\t$$mach2\t$$beam\t$$beam_improvement" >> $@; \
 	}
 
 # Get overall summary files with times from all simulations
 eval.all.time.txt: $(TIMES)
-	awk 'BEGIN{print "sim\tvine\tlaml\tmetient\tmach2\tbeam\tbeam_improvement"} \
+	awk 'function avg(sum, n) { return n ? sprintf("%.2f", sum/n) : "NA" } \
+	     BEGIN{print "sim\tvine\tlaml\tmetient\tmach2\tbeam\tbeam_improvement"} \
 	     FNR==1 { \
 	       print; \
-	       sumV+=$$2; sumL+=$$3; sumM+=$$4; sum2+=$$5; sumB+=$$6; sumIB+=$$7; n++; \
+	       sumV+=$$2; if ($$3 != "NA") { sumL+=$$3; nL++ } \
+	       if ($$4 != "NA") { sumM+=$$4; nM++ } \
+	       if ($$5 != "NA") { sum2+=$$5; n2++ } \
+	       if ($$6 != "NA") { sumB+=$$6; nB++ } \
+	       if ($$7 != "NA") { sumIB+=$$7; nIB++ } n++; \
 	     } \
 	     END{ \
 	       if(n>0){ \
 	         print "-----------------------------------------"; \
-	         printf "avg\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\n", \
-	                sumV/n, sumL/n, sumM/n, sum2/n, sumB/n, sumIB/n; \
+	         printf "avg\t%.2f\t%s\t%s\t%s\t%s\t%s\n", \
+	                sumV/n, avg(sumL,nL), avg(sumM,nM), avg(sum2,n2), \
+	                avg(sumB,nB), avg(sumIB,nIB); \
 	       } \
 	     }' $(TIMES) > $@
 
 
-# ### Use these targets to get times with only specific methods and NA for the rest
-# # Get times for just VINE with other methods as NA
-# tree.%.time: tree.%.var-time
-# 	@{ \
-# 	printf "%s\t" "$*" > $@; \
-# 	vine=$$(head -n 1 tree.$*.var-time | awk '{printf "%.3f", $$1}'); \
-# 	laml="NA"; \
-# 	metient="NA"; \
-# 	mach2="NA"; \
-# 	beam="NA"; \
-# 	beam_improvement="NA"; \
-# 	echo -e "$$vine\t$$laml\t$$metient\t$$mach2\t$$beam\t$$beam_improvement" >> $@; \
-# 	}
-
-# # To get the overall time file for just vine
-# eval.all.time.txt: $(TIMES)
-# 	awk 'BEGIN{print "sim\tvine\tlaml\tmetient\tmach2\tbeam\tbeam_improvement"} \
-# 	     FNR==1 { \
-# 	       print; \
-# 	       sumV+=$$2; n++; \
-# 	     } \
-# 	     END{ \
-# 	       if(n>0){ \
-# 	         print "-----------------------------------------"; \
-# 	         printf "avg\t%.2f\tNA\tNA\tNA\tNA\tNA\n", sumV/n; \
-# 	       } \
-# 	     }' $(TIMES) > $@
-
-# # Times for VINE and BEAM only with others as NA
-# tree.%.time: tree.%.var-time tree.%.beam.term
-# 	@{ \
-# 	printf "%s\t" "$*" > $@; \
-# 	vine=$$(head -n 1 tree.$*.var-time | awk '{printf "%.3f", $$1}'); \
-# 	laml="NA"; \
-# 	metient="NA"; \
-# 	mach2="NA"; \
-# 	beam=$$(awk '/\/Msamples/{ \
-# 		n_last=$$1; x_last=$$NF; sub(/\/Msamples.*/,"",x_last); \
-# 		if (($$3+0)>$(BEAM_ESS_TARGET)) { n=n_last; x=x_last; found=1; exit } \
-# 	} \
-# 	END{ \
-# 		if(!found){n=n_last; x=x_last} \
-# 		h=m=s=0; \
-# 		if(match(x,/([0-9]+)h/,a)) h=a[1]; \
-# 		if(match(x,/([0-9]+)m/,a)) m=a[1]; \
-# 		if(match(x,/([0-9]+)s/,a)) s=a[1]; \
-# 		printf "%.3f", (n/1e6) * (3600*h + 60*m + s) \
-# 	}' tree.$*.beam.term); \
-# 	beam_improvement=$$(echo "scale=6; $$beam / $$vine" | bc -l | awk '{printf "%.3f", $$1}'); \
-# 	echo -e "$$vine\t$$laml\t$$metient\t$$mach2\t$$beam\t$$beam_improvement" >> $@; \
-# 	}
-
-# eval.all.time.txt: $(TIMES)
-# 	awk 'BEGIN{print "sim\tvine\tlaml\tmetient\tmach2\tbeam\tbeam_improvement"} \
-# 	     FNR==1 { \
-# 	       print; \
-# 	       sumV+=$$2; sumB+=$$6; n++; \
-# 	     } \
-# 	     END{ \
-# 	       if(n>0){ \
-# 	         print "-----------------------------------------"; \
-# 	         printf "avg\t%.2f\tNA\tNA\tNA\t%.2f\tNA\n", sumV/n, sumB/n; \
-# 	       } \
-# 	     }' $(TIMES) > $@
-
-# tree.%.time: tree.%.var-time tree.%.mach2-time
-# 	printf "%s\t" "$*" > $@
-# 	head -n 1 tree.$*.var-time | awk '{printf "%.3f\t", $$1}' >> $@
-# 	printf "NA\t" >> $@
-# 	head -n 1 tree.$*.mach2-time | awk '{printf "%.3f\t", $$1}' >> $@
-# 	printf "NA\n" >> $@
-
-# eval.all.time.txt: $(TIMES)
-# 	awk 'BEGIN{print "sim\tvine\tmetient\tmach2\tbeam\tbeam_improvement"} \
-# 	     FNR==1 { \
-# 	       print; \
-# 	       sumV+=$$2; sum2+=$$4; n++; \
-# 	     } \
-# 	     END{ \
-# 	       if(n>0){ \
-# 	         print "-----------------------------------------"; \
-# 	         printf "avg\t%.2f\t%s\t%.2f\t%s\t%s\n", \
-# 	                sumV/n, "NA", sum2/n, "NA", "NA"; \
-# 	       } \
-# 	     }' $(TIMES) > $@
-# ## end special targets without metient and beam
-
-# ### Use these targets to get times without beam only
-# tree.%.time: tree.%.var-time tree.%.metient-time tree.%.mach2-time
-# 	printf "%s\t" "$*" > $@
-# 	head -n 1 tree.$*.var-time | awk '{printf "%.3f\t", $$1}' >> $@
-# 	head -n 1 tree.$*.metient-time | awk '{printf "%.3f\t", $$1}' >> $@
-# 	head -n 1 tree.$*.mach2-time | awk '{printf "%.3f\t", $$1}' >> $@
-# 	printf "NA\n" >> $@
-
-# # Get overall summary files with times from all simulations
-# eval.all.time.txt: $(TIMES)
-# 	awk 'BEGIN{print "sim\tvine\tmetient\tmach2\tbeam\tbeam_improvement"} \
-# 	     FNR==1 { \
-# 	       print; \
-# 	       sumV+=$$2; sumM+=$$3; sum2+=$$4; n++; \
-# 	     } \
-# 	     END{ \
-# 	       if(n>0){ \
-# 	         print "-----------------------------------------"; \
-# 	         printf "avg\t%.2f\t%.2f\t%.2f\t%s\t%s\n", \
-# 	                sumV/n, sumM/n, sum2/n, "NA", "NA"; \
-# 	       } \
-# 	     }' $(TIMES) > $@
-# ## end special targets without metient and beam
 
 eval.all.time.pdf: eval.all.time.txt
 	singularity exec --bind $(R_SRC):/mnt/scripts --bind ./:/mnt/files $(RPLOTTING_SIF) Rscript /mnt/scripts/plot_runtime_bars.R /mnt/files/eval.all.time.txt /mnt/files/eval.all.time.pdf
 
 # Get precision, recall, and f1 scores for 0.50 probability threshold graphs for quick comparisons
 THRESH := 0.5
-tree.%.50_prf.txt: tree.%.var.precision_recall.csv tree.%.beam.precision_recall.csv tree.%.metient.precision_recall.csv tree.%.mach2.precision_recall.csv
-	@SIM=$$(basename "$*" | cut -d'.' -f2); \
+tree.%.50_prf.txt: tree.%.var.precision_recall.csv $(PRF_BEAM_DEPS) $(PRF_AUX_DEPS) $(COMMON_MK)
+	@SIM="$*"; \
 	awk -F, -v sim="$$SIM" 'NR==1{ \
 		print "sim\tmethod\tprecision\trecall\tf1"; \
 	} NR>1{ \
@@ -491,21 +417,25 @@ tree.%.50_prf.txt: tree.%.var.precision_recall.csv tree.%.beam.precision_recall.
 			print sim"\tVINE\t"$$2"\t"$$3"\t"$$4; \
 		} \
 	}' tree.$*.var.precision_recall.csv > $@; \
-	awk -F, -v sim="$$SIM" 'NR==1{next} NR>1{ \
-		if($$1=="$(THRESH)"){ \
-			print sim"\tBEAM\t"$$2"\t"$$3"\t"$$4; \
-		} \
-	}' tree.$*.beam.precision_recall.csv >> $@; \
-	awk -F, -v sim="$$SIM" 'NR==1{next} NR>1{ \
+	if [ "$(BEAM_ENABLED)" = "1" ]; then \
+		awk -F, -v sim="$$SIM" 'NR==1{next} NR>1{ \
+			if($$1=="$(THRESH)"){ \
+				print sim"\tBEAM\t"$$2"\t"$$3"\t"$$4; \
+			} \
+		}' tree.$*.beam.precision_recall.csv >> $@; \
+	fi; \
+	if [ "$(AUX_METHODS_ENABLED)" = "1" ]; then \
+		awk -F, -v sim="$$SIM" 'NR==1{next} NR>1{ \
 		if($$1=="$(THRESH)"){ \
 			print sim"\tMETIENT\t"$$2"\t"$$3"\t"$$4; \
 		} \
-	}' tree.$*.metient.precision_recall.csv >> $@; \
-	awk -F, -v sim="$$SIM" 'NR==1{next} NR>1{ \
+		}' tree.$*.metient.precision_recall.csv >> $@; \
+		awk -F, -v sim="$$SIM" 'NR==1{next} NR>1{ \
 		if($$1=="$(THRESH)"){ \
 			print sim"\tMACH2\t"$$2"\t"$$3"\t"$$4; \
 		} \
-	}' tree.$*.mach2.precision_recall.csv >> $@
+		}' tree.$*.mach2.precision_recall.csv >> $@; \
+	fi
 
 eval.all.50_prf.txt: $(50PRFS)
 	awk 'FNR==1 && NR==1 {print "sim\tmethod\tprecision\trecall\tf1"; next} FNR==1 {next} {print}' tree.*.50_prf.txt > $@
@@ -513,9 +443,9 @@ eval.all.50_prf.txt: $(50PRFS)
 eval.all.50_prf.pdf: eval.all.50_prf.txt
 	singularity exec --bind $(R_SRC):/mnt/scripts --bind ./:/mnt/files $(RPLOTTING_SIF) Rscript /mnt/scripts/plot_f1_box.R /mnt/files/eval.all.50_prf.txt /mnt/files/eval.all.50_prf.pdf
 
-eval.all.thresh_prf.txt: $(VINEPRFS) $(METIENTPRFS) $(MACH2PRFS) $(BEAMPRFS)
+eval.all.thresh_prf.txt: $(VINEPRFS) $(THRESH_BEAM_PRFS) $(THRESH_AUX_PRFS) $(COMMON_MK)
 	echo -e "sim\tmethod\tthreshold\tprecision\trecall\tf1" > $@; \
-	for file in $^; do \
+	for file in $(filter %.precision_recall.csv,$^); do \
 		method=$$(basename "$$file" | cut -d'.' -f3); \
 		if [ "$$method" == "var" ]; then method="VINE"; \
 		elif [ "$$method" == "beam" ]; then method="BEAM"; \
@@ -528,62 +458,6 @@ eval.all.thresh_prf.txt: $(VINEPRFS) $(METIENTPRFS) $(MACH2PRFS) $(BEAMPRFS)
 
 eval.all.thresh_prf.pdf: eval.all.thresh_prf.txt
 	singularity exec --bind $(R_SRC):/mnt/scripts --bind ./:/mnt/files $(RPLOTTING_SIF) Rscript /mnt/scripts/plot_precision_recall.R /mnt/files/eval.all.thresh_prf.txt /mnt/files/eval.all.thresh_prf.pdf
-
-# evalTrees
-tree.%.var.rf.txt: tree.%.var.nwk tree.%_cell_tree.nwk
-	$(VINE_BIN)/evalTrees tree.$*.var.nwk -t tree.$*_cell_tree.nwk > $@
-
-tree.%.true.rf.txt: tree.%_cell_tree.nwk tree.%_cell_tree.nwk
-	$(VINE_BIN)/evalTrees tree.$*_cell_tree.nwk -t tree.$*_cell_tree.nwk > $@
-
-tree.%.cass.rf.txt: tree.%.cass.nwk tree.%_cell_tree.nwk
-	$(VINE_BIN)/evalTrees tree.$*.cass.nwk -t tree.$*_cell_tree.nwk > $@
-
-tree.%.laml.rf.txt: tree.%.laml_trees.nwk tree.%_cell_tree.nwk
-	sed 's/^\[&R\]//g' tree.$*.laml_trees.nwk > tmp_$*.nwk
-	$(VINE_BIN)/evalTrees tmp_$*.nwk -t tree.$*_cell_tree.nwk > $@
-	rm tmp_$*.nwk
-
-# Convert beam nexus output to newick
-BURNIN := 0.1
-tree.%.beam.nwk tree.%.beam.burninRemoved.nwk: tree.%.beam.trees
-	$(BIN)/nex2nwk tree.$*.beam.trees tree.$*.beam.nwk
-	numTrees=$$(wc -l < tree.$*.beam.nwk) ; \
-	burnin=$$(awk -v n=$$numTrees -v b=$(BURNIN) 'BEGIN{printf "%d\n", n*b}') ; \
-	tail -n +$$((burnin+1)) tree.$*.beam.nwk > tree.$*.beam.burninRemoved.nwk
-
-tree.%.beam.rf.txt: tree.%.beam.burninRemoved.nwk tree.%_cell_tree.nwk
-	sed 's/\[\\*\[&[^]]*\]\\*\]//g' tree.$*.beam.burninRemoved.nwk > tree.$*.beam.burninRemoved.clean.nwk
-	$(VINE_BIN)/evalTrees tree.$*.beam.burninRemoved.clean.nwk -t tree.$*_cell_tree.nwk > $@
-	rm tree.$*.beam.burninRemoved.clean.nwk
-
-tree.%.rf: tree.%.true.rf.txt tree.%.var.rf.txt tree.%.laml.rf.txt tree.%.beam.rf.txt tree.%.cass.rf.txt
-	rm -f $@
-	for file in $^ ; do \
-		echo -n "$$file     " >> $@ ;\
-		awk '$$1 == "Mean:" {printf "%f\t", $$2} $$1 == "Std:" {printf "%f\n", $$2}' $${file} >> $@ ;\
-	done
-
-# Normalized RF: mean and std divided by (n-3), n = taxa from true tree
-# TODO: Something is not right with the rf calculations, so we will need to look into it in the future if needed (SS - 3/5/26)
-eval.all.rf.txt: $(EVALRF)
-	n=$(NTAXA); \
-	div=$$((n - 3)); [ $$div -lt 1 ] && div=1; \
-	echo "true (sd) vine (sd) laml (sd) beam (sd) cass (sd)" > tmp; \
-	for file in $^ ; do \
-		awk -v d="$$div" '{printf "%f\t%f\t", $$2/d, $$3/d}' \
-		  "$$file" >> tmp; \
-		echo >> tmp; \
-	done; \
-	awk '{x1+=$$1; x1s+=$$2*$$2; x2+=$$3; x2s+=$$4*$$4; \
-	  x3+=$$5; x3s+=$$6*$$6; x4+=$$7; x4s+=$$8*$$8; x5+=$$9; x5s+=$$10*$$10; print $$0} END { \
-	  printf "-----\n%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", \
-	  x1/(NR-1), sqrt(x1s/(NR-1)), x2/(NR-1), sqrt(x2s/(NR-1)), \
-	  x3/(NR-1), sqrt(x3s/(NR-1)), x4/(NR-1), sqrt(x4s/(NR-1)), \
-	  x5/(NR-1), sqrt(x5s/(NR-1))}' \
-	  tmp > $@; \
-	rm -f tmp
-
 
 clean:
 	rm -f tree.*
@@ -603,6 +477,9 @@ clean_not_converged_beam:
 			fi; \
 		fi; \
 	done
+
+clean_vine:
+	rm -f tree.*.var* eval.all.*
 
 archive_all:
 	archive_dir=archive_all.$$(date +%Y-%m-%d_%H:%M:%S); \

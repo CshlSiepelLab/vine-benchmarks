@@ -5,6 +5,7 @@ use_relative_lnl <- "--relative" %in% args
 
 suppressMessages(library(ggplot2))
 suppressMessages(library(scales))
+suppressMessages(library(patchwork))
 
 args_all <- commandArgs(trailingOnly = FALSE)
 file_arg <- sub("^--file=", "", args_all[grep("^--file=", args_all)])
@@ -197,13 +198,6 @@ p_lnl_ds <- ggplot(lnl_long, aes(x = ds, y = plot_y, fill = method)) +
   ) +
   guides(fill = guide_legend(override.aes = list(width = 0.6)))
 
-lnl_filename <- file.path(script_dir, "dna_lnl_by_ds.pdf")
-lnl_dated_filename <- file.path(
-  script_dir, paste0("dna_lnl_by_ds_", date_stamp, ".pdf")
-)
-save_pdf(p_lnl_ds, lnl_filename, width = 6.8, height = 3.0)
-save_pdf(p_lnl_ds, lnl_dated_filename, width = 6.8, height = 3.0)
-
 ## ===============================================
 ## 2) RUNNING TIMES (eval.all.time.txt) — vine/BEAST/RAxML
 ## ===============================================
@@ -280,11 +274,31 @@ p_time_ds <- ggplot(time_long, aes(x = ds, y = value, fill = method)) +
       vjust = 1, hjust = 1, size = 7
     )
   ) +
-  guides(fill = guide_legend(override.aes = list(width = 0.6)))
+  guides(fill = "none") +
+  theme(legend.position = "none")
 
-time_filename <- file.path(script_dir, "dna_time_by_ds.pdf")
-time_dated_filename <- file.path(
-  script_dir, paste0("dna_time_by_ds_", date_stamp, ".pdf")
+## ===============================================
+## 3) COMBINED SUPPLEMENTARY FIGURE
+## ===============================================
+combined <- (p_lnl_ds / p_time_ds) +
+  plot_layout(ncol = 1, guides = "collect") +
+  plot_annotation(
+    tag_levels = "A",
+    tag_prefix = "",
+    tag_suffix = ""
+  )
+combined <- combined & theme(
+  legend.position = "right",
+  plot.tag = element_text(
+    size = 12, face = "bold", family = "Helvetica"
+  ),
+  plot.tag.position = c(0.01, 0.99)
 )
-save_pdf(p_time_ds, time_filename, width = 6.8, height = 3.0)
-save_pdf(p_time_ds, time_dated_filename, width = 6.8, height = 3.0)
+
+save_pdf(
+  combined,
+  file.path(
+    script_dir, paste0("dna_lnl_time_by_ds_", date_stamp, ".pdf")
+  ),
+  width = 6.8, height = 6.0
+)
