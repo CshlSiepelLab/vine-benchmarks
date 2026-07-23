@@ -57,7 +57,7 @@ MRBAYESBEAGLENWK := $(patsubst %.true.nwk,%.mrbayes-beagle.nwk,$(TREES))
 # evalTrees stuff
 FAHELDOUT := $(patsubst %.true.nwk,%.heldout.fa,$(TREES))
 
-.PHONY: beast-beagle beast-beagle-nwk mrbayes-beagle mrbayes-beagle-nwk bsd clean-mf
+.PHONY: beast-beagle beast-beagle-nwk mrbayes-beagle mrbayes-beagle-nwk bsd clean-mf archive_vine
 
 all: eval.all.lnl.txt eval.all.rf.txt eval.all.mf.txt eval.all.time.txt eval.all.dist.txt
 
@@ -203,13 +203,6 @@ tree.%.mrbayes-beagle.nwk: tree.%.mrbayes-beagle.nex.t
 	  | sed 's/^\[&[^]]*\]\s*//' > $@
 	rm -f tree.$*.mrbayes-beagle.thinned.t
 
-# Run raxml
-tree.%.raxml.term: tree.%.fa
-	rm -f $@
-	sed 's/> />/g' $< > tree.$*.raxml.fa
-	$(BIN)/raxml-ng --msa tree.$*.raxml.fa --model HKY+F --prefix tree.$* --search1 --threads 1 > tree.$*.raxml.term
-	rm -f tree.$*.raxml.fa
-
 # extract training likelihoods
 tree.%.true.mod: tree.%.true.nwk tree.%.fa
 	cp ../base-hky.mod tree.$*.true.tmp.mod
@@ -252,20 +245,16 @@ tree.%.mrbayes-beaglelnl: tree.%.mrbayes-beagle.nex.p tree.%.mrbayes-beagle.term
 	echo -n "$< " > $@
 	grep -v '^\[' $< | grep -v '^Gen' | awk '{print $$2}' | sort -gr | head -1 | awk '{printf "%.6f\n", $$1}' >> $@
 
-tree.%.raxmllnl: tree.%.raxml.term
-	echo -n "$^ " > $@
-	grep 'Final LogLikelihood:' $^ | awk '{printf "%.6f\n", $$3}' >> $@
-
-tree.%.lnl: tree.%.modlnl tree.%.varlnl tree.%.beastlnl tree.%.beast-beaglelnl tree.%.mrbayeslnl tree.%.mrbayes-beaglelnl tree.%.raxmllnl
+tree.%.lnl: tree.%.modlnl tree.%.varlnl tree.%.beastlnl tree.%.beast-beaglelnl tree.%.mrbayeslnl tree.%.mrbayes-beaglelnl
 	cat $^ | awk '{if (true == 0) true = $$2; printf "%s %f\n", $$0, $$2 - true}' > $@
 
 eval.all.lnl.txt: $(LNL)
-	echo -e "true\tnj\tml\tvine\tbeast\tbeast-beagle\tmrbayes\tmrbayes-beagle\traxml" > $@.tmp
+	echo -e "true\tnj\tml\tvine\tbeast\tbeast-beagle\tmrbayes\tmrbayes-beagle" > $@.tmp
 	for file in $^ ; do \
 		awk '{printf "%s\t", $$2}' $${file} >> $@.tmp ;\
 		echo >> $@.tmp ;\
 	done
-	awk '{for(i=1;i<=NF;i++) x[i]+=$$i; print $$0} END {printf "-----\n"; for(i=1;i<=9;i++) printf "%f%s", x[i]/(NR-1), (i<9 ? "\t" : "\n")}' $@.tmp > $@
+	awk '{for(i=1;i<=NF;i++) x[i]+=$$i; print $$0} END {printf "-----\n"; for(i=1;i<=8;i++) printf "%f%s", x[i]/(NR-1), (i<8 ? "\t" : "\n")}' $@.tmp > $@
 	rm -f $@.tmp
 
 # Create a version where each row's values are offset by its true value
@@ -276,8 +265,8 @@ updated.all.lnl.txt: eval.all.lnl.txt
 
 
 ## extract timing info
-tree.%.time: tree.%.beast.term tree.%.beast-beagle.term tree.%.var-time tree.%.mrbayes.term tree.%.mrbayes-beagle.term tree.%.raxml.term
-	echo -e "samp\tbeast\tbeast-beagle\tmrbayes\tmrbayes-beagle\tvine\traxml" > $@; \
+tree.%.time: tree.%.beast.term tree.%.beast-beagle.term tree.%.var-time tree.%.mrbayes.term tree.%.mrbayes-beagle.term
+	echo -e "samp\tbeast\tbeast-beagle\tmrbayes\tmrbayes-beagle\tvine" > $@; \
 	beast_time=$$(grep '^Total calculation time' tree.$*.beast.term | awk '{print $$4}'); \
 	printf "$*\t%s\t" "$$beast_time" >> $@; \
 	beast_beagle_time=$$(grep '^Total calculation time' tree.$*.beast-beagle.term | awk '{print $$4}'); \
@@ -286,8 +275,7 @@ tree.%.time: tree.%.beast.term tree.%.beast-beagle.term tree.%.var-time tree.%.m
 	printf "%s\t" "$$mrbayes_time" >> $@; \
 	mrbayes_beagle_time=$$(grep 'Analysis used' tree.$*.mrbayes-beagle.term | awk '{printf "%s\t", $$3}'); \
 	printf "%s\t" "$$mrbayes_beagle_time" >> $@; \
-	head -1 tree.$*.var-time | awk '{printf "%s\t", $$1}' | sed 's/user//' >> $@; \
-	grep 'Elapsed time:' tree.$*.raxml.term | awk '{printf "%s\n", $$3}' >> $@
+	head -1 tree.$*.var-time | awk '{printf "%s\n", $$1}' | sed 's/user//' >> $@
 
 
 eval.all.time.txt: $(TIME)
@@ -524,7 +512,6 @@ tree.%.tr: tree.%.var.nwk.log
 clean:
 	rm -rf $(TREES) $(FA) $(MOD) $(ML) $(MLMOD) $(NJMOD) $(NJ) $(VAR) $(VARNEX) $(EVALURF) $(LNL) $(VARLOG) $(VARTIME) tree.*.mean*.nwk tree.*.lnl.diffs tree.*.varlnl tree.*.modlnl eval.all.*.txt tree.*.beast* *.mf.txt *.rf.txt *.dist.txt  tree.*.time tree.*.lnl tree.*.mf tree.*.rf $(FAHELDOUT) $(TRACER)
 	rm -rf tree.*.mrbayes* tree.*.nex
-	rm -rf tree.*.raxml*
 
 clean_mcmc:
 	rm -rf tree.*.beast* tree.*.mrbayes* beast_ess* mrbayes_ess* eval.all.*
@@ -546,6 +533,23 @@ clean_vine:
 	rm -rf tree.*.var* eval.all.*.txt tree.*.mf tree.*.rf tree.*.dist tree.*.lnl
 
 # Some useful rules for archiving results more efficiently
+VINE_ARCHIVE_FILES = tree.*.var* tree.*.mean*.nwk \
+	tree.*.lnl tree.*.time tree.*.rf tree.*.mf tree.*.dist tree.*.bsd \
+	eval.all.*.txt updated.all.lnl.txt
+
+archive_vine:
+	@archive_dir="archive.vine_$$(date +%Y-%m-%d_%H-%M-%S)"; \
+	files="$$(for pattern in $(VINE_ARCHIVE_FILES); do \
+		for file in $$pattern; do [ -e "$$file" ] && printf '%s ' "$$file"; done; \
+	done)"; \
+	if [ -z "$$files" ]; then \
+		echo "No Vine outputs or summary files to archive"; \
+	else \
+		mkdir "$$archive_dir"; \
+		mv $$files "$$archive_dir/"; \
+		echo "Archived Vine outputs and summary files in $$archive_dir"; \
+	fi
+
 archive_mcmc:
 	archive_dir="archive.beast_mrbayes_$$(date +%Y-%m-%d_%H:%M:%S)"; \
 	mkdir $$archive_dir; \

@@ -33,7 +33,6 @@ MLMOD := $(patsubst %.true.nwk,%.ml.mod,$(TREES))
 NJMOD := $(patsubst %.true.nwk,%.nj.mod,$(TREES))
 NJ := $(patsubst %.true.nwk,%.nj.nwk,$(TREES))
 ML := $(patsubst %.true.nwk,%.ml.nwk,$(TREES))
-RAXML := $(patsubst %.true.nwk,%.raxml.term,$(TREES))
 VAR := $(patsubst %.true.nwk,%.var.nwk,$(TREES))
 EVALRF := $(patsubst tree.%.true.nwk,tree.%.rf,$(TREES))
 EVALBSD := $(patsubst tree.%.true.nwk,tree.%.bsd,$(TREES))
@@ -66,12 +65,12 @@ FAHELDOUT := $(patsubst %.true.nwk,%.heldout.fa,$(TREES))
 
 .PHONY: beast-beagle beast-beagle-nwk mrbayes-beagle mrbayes-beagle-nwk clean_rf clean_bsd
 
-all: eval.all.lnl.txt eval.all.rf.txt eval.all.mf.txt eval.all.time.txt eval.all.dist.txt eval.all.ent.txt
+all: eval.all.lnl.txt eval.all.rf.txt eval.all.mf.txt eval.all.time.txt eval.all.dist.txt eval.all.ent.txt eval.all.bsd.txt
 
 bsd: eval.all.bsd.txt
 
 simulate: $(FA)
-max_lik: $(ML) $(RAXML)
+max_lik: $(ML)
 mcmc: $(BEASTLOG) $(BEASTBEAGLELOG) $(MRBAYESLOG) $(MRBAYESBEAGLELOG)
 beast: $(BEASTLOG)
 beast-beagle: $(BEASTBEAGLELOG)
@@ -219,13 +218,6 @@ tree.%.mrbayes-beagle.nwk: tree.%.mrbayes-beagle.nex.t
 	mv -f tree.$*.mrbayes-beagle.nwk.tmp $@
 	rm -f tree.$*.mrbayes-beagle.thinned.t
 
-# Run raxml
-tree.%.raxml.term: tree.%.fa
-	rm -f $@
-	sed 's/> />/g' $< > tree.$*.raxml.fa
-	$(BIN)/raxml-ng --msa tree.$*.raxml.fa --model HKY+F --prefix tree.$* --search1 --threads 1 > tree.$*.raxml.term
-	rm -f tree.$*.raxml.fa
-
 # Get NJ tree in nexus format
 tree.%.nj.nex: tree.%.nj.nwk
 	$(BIN)/nwk2nex $< $@
@@ -272,28 +264,24 @@ tree.%.mrbayes-beaglelnl: tree.%.mrbayes-beagle.nex.p tree.%.mrbayes-beagle.term
 	echo -n "$< " > $@
 	grep -v '^\[' $< | grep -v '^Gen' | awk '{print $$2}' | sort -gr | head -1 | awk '{printf "%.6f\n", $$1}' >> $@
 
-tree.%.raxmllnl: tree.%.raxml.term
-	echo -n "$^ " > $@
-	grep 'Final LogLikelihood:' $^ | awk '{printf "%.6f\n", $$3}' >> $@
-
-tree.%.lnl: tree.%.modlnl tree.%.varlnl tree.%.beastlnl tree.%.beast-beaglelnl tree.%.mrbayeslnl tree.%.mrbayes-beaglelnl tree.%.raxmllnl tree.%.beast-beagle.log
-	cat tree.$*.modlnl tree.$*.varlnl tree.$*.beastlnl tree.$*.beast-beaglelnl tree.$*.mrbayeslnl tree.$*.mrbayes-beaglelnl tree.$*.raxmllnl | awk '{if (true == 0) true = $$2; printf "%s %f\n", $$0, $$2 - true}' > $@
+tree.%.lnl: tree.%.modlnl tree.%.varlnl tree.%.beastlnl tree.%.beast-beaglelnl tree.%.mrbayeslnl tree.%.mrbayes-beaglelnl tree.%.beast-beagle.log
+	cat tree.$*.modlnl tree.$*.varlnl tree.$*.beastlnl tree.$*.beast-beaglelnl tree.$*.mrbayeslnl tree.$*.mrbayes-beaglelnl | awk '{if (true == 0) true = $$2; printf "%s %f\n", $$0, $$2 - true}' > $@
 
 eval.all.lnl.txt: $(LNL)
-	echo -e "true\tnj\tml\tvine\tbeast\tbeast-beagle\tmrbayes\tmrbayes-beagle\traxml" > lnltmp; \
+	echo -e "true\tnj\tml\tvine\tbeast\tbeast-beagle\tmrbayes\tmrbayes-beagle" > lnltmp; \
 	for file in $(LNL); do \
 	  awk '{printf "%s\t", $$2}' $$file >> lnltmp; \
 	  echo >> lnltmp; \
 	done; \
 	awk '{ \
 	  x1 += $$1; x2 += $$2; x3 += $$3; x4 += $$4; \
-	  x5 += $$5; x6 += $$6; x7 += $$7; x8 += $$8; x9 += $$9; \
+	  x5 += $$5; x6 += $$6; x7 += $$7; x8 += $$8; \
 	  print $$0 \
 	} END { \
 	  n = NR - 1; \
 	  if (n > 0) \
-	    printf ("-----\n%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", \
-	      x1/n, x2/n, x3/n, x4/n, x5/n, x6/n, x7/n, x8/n, x9/n \
+	    printf ("-----\n%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", \
+	      x1/n, x2/n, x3/n, x4/n, x5/n, x6/n, x7/n, x8/n \
 	    ) \
 	}' lnltmp > $@; \
 	rm -f lnltmp
@@ -305,8 +293,8 @@ updated.all.lnl.txt: eval.all.lnl.txt
 		{t=$$1; for(i=1;i<=NF;i++) $$i=$$i-t; print}' $< > $@
 
 # extract timing info
-tree.%.time: tree.%.beast.term tree.%.beast-beagle.term tree.%.var-time tree.%.mrbayes.term tree.%.mrbayes-beagle.term tree.%.raxml.term
-	echo -e "samp\tbeast\tbeast-beagle\tmrbayes\tmrbayes-beagle\tvine\traxml" > $@; \
+tree.%.time: tree.%.beast.term tree.%.beast-beagle.term tree.%.var-time tree.%.mrbayes.term tree.%.mrbayes-beagle.term
+	echo -e "samp\tbeast\tbeast-beagle\tmrbayes\tmrbayes-beagle\tvine" > $@; \
 	beast_time=$$(grep '^Total calculation time' tree.$*.beast.term | awk '{print $$4}'); \
 	printf "$*\t%s\t" "$$beast_time" >> $@; \
 	beast_beagle_time=$$(grep '^Total calculation time' tree.$*.beast-beagle.term | awk '{print $$4}'); \
@@ -315,8 +303,7 @@ tree.%.time: tree.%.beast.term tree.%.beast-beagle.term tree.%.var-time tree.%.m
 	printf "%s\t" "$$mrbayes_time" >> $@; \
 	mrbayes_beagle_time=$$(grep 'Analysis used' tree.$*.mrbayes-beagle.term | awk '{printf "%s\t", $$3}'); \
 	printf "%s\t" "$$mrbayes_beagle_time" >> $@; \
-	head -1 tree.$*.var-time | awk '{printf "%s\t", $$1}' | sed 's/user//' >> $@; \
-	grep 'Elapsed time:' tree.$*.raxml.term | awk '{printf "%s\n", $$3}' >> $@
+	head -1 tree.$*.var-time | awk '{printf "%s\n", $$1}' | sed 's/user//' >> $@
 
 eval.all.time.txt: $(TIME)
 	awk 'FNR==1 && NR==1 {print; next} FNR==2 {print; for(i=2;i<=NF;i++) sum[i]+=$$i; n++} END {if(n>0){printf "-----------------------------------------\nall"; for(i=2;i<=NF;i++) printf "\t%.2f", sum[i]/n; printf "\n"}}' $(TIME) > $@
@@ -529,7 +516,6 @@ tree.%.tr: tree.%.var.nwk.log
 clean:
 	rm -rf $(TREES) $(FA) $(MOD) $(ML) $(MLMOD) $(NJMOD) $(NJ) $(VAR) $(VARNEX) $(EVALURF) $(LNL) $(VARLOG) $(VARTIME) tree.*.mean*.nwk tree.*.lnl.diffs tree.*.varlnl tree.*.modlnl eval.all.*.txt tree.*.beast* *.mf.txt *.rf.txt *.dist.txt  tree.*.time tree.*.lnl tree.*.mf tree.*.rf $(FAHELDOUT) $(TRACER)
 	rm -rf tree.*.mrbayes* tree.*.nex
-	rm -rf tree.*.raxml*
 
 # Remove only RF evaluation products so they can be recomputed from the
 # existing inferred trees with `make eval.all.rf.txt`.
