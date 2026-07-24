@@ -101,6 +101,7 @@ runAltVine.sh
 
 # ignore pilot runs
 *pilot*
-*kl_pdist*
-*kl_topo*
+dna_sims/jc69_300sites/*kl_pdist*
+dna_sims/jc69_300sites/*kl_topo*
 dna_sims/hky_300sites_posterior_quality/*taxa/*
+dna_sims/jc69_300sites/*taxa/*
