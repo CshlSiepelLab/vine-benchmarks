@@ -1,14 +1,14 @@
 #!/bin/bash
 
 # Unified data extraction for HKY (300, 10000) and JC69 and GTR graphs.
-# Usage: bash extractGraphData.sh [hky300|hky10k|jc69|gtr]
+# Usage: bash extractGraphData.sh [hky300|hky10k|jc69|gtr|treeprior|hky300-postqual]
 
 stats="/local/storage/no-backup/vine-benchmarks/bin/stats"
 
 set -euo pipefail
 
 if [[ $# -lt 1 ]]; then
-  echo "Usage: bash extractGraphData.sh [hky300|hky10k|jc69|gtr|treeprior]" >&2
+  echo "Usage: bash extractGraphData.sh [hky300|hky10k|jc69|gtr|treeprior|hky300-postqual]" >&2
   exit 1
 fi
 
@@ -17,9 +17,9 @@ raw_model="$1"
 model="$raw_model"
 
 case "$model" in
-  hky300|hky10k|jc69|gtr|treeprior) ;;
+  hky300|hky10k|jc69|gtr|treeprior|hky300-postqual) ;;
   *)
-    echo "Model must be 'hky300', 'hky10k', 'jc69', 'gtr', or 'treeprior'." >&2
+    echo "Model must be 'hky300', 'hky10k', 'jc69', 'gtr', 'treeprior', or 'hky300-postqual'." >&2
     exit 1
     ;;
 esac
@@ -40,12 +40,37 @@ elif [[ "$model" == "gtr" ]]; then
 elif [[ "$model" == "treeprior" ]]; then
   ROOT="/local/storage/no-backup/vine-benchmarks/dna_sims/hky_300sites_treeprior"
   OUT_DIR="$graphs_dir/hky300-treeprior-data"
+elif [[ "$model" == "hky300-postqual" ]]; then
+  ROOT="/local/storage/no-backup/vine-benchmarks/dna_sims/hky_300sites_posterior_quality"
+  OUT_DIR="$graphs_dir/hky300-posterioranalysis-data"
 else
   ROOT="/local/storage/no-backup/vine-benchmarks/dna_sims/jc69_300sites"
   OUT_DIR="$graphs_dir/jc69-data"
 fi
 
 mkdir -p "$OUT_DIR"
+
+# hky300-postqual: plot_posterior_quality_main.R parses the raw per-replicate
+# eval files itself (10 replicate rows + "-----" separator + precomputed mean
+# row), so this just stages copies -- no awk/stats summarization needed.
+if [[ "$model" == "hky300-postqual" ]]; then
+  postqual_sizes=( "10" "25" "50" "100" "250" "500" "1000" )
+  postqual_files=(
+    "vine.eval.all.dist.txt"
+    "vine_flows.eval.all.dist.txt"
+    "vine.eval.all.kl_pdist_mrbayes.txt"
+    "vine_flows.eval.all.kl_pdist_mrbayes.txt"
+    "beast.eval.all.kl_pdist_mrbayes.txt"
+  )
+  for s in "${postqual_sizes[@]}"; do
+    mkdir -p "$OUT_DIR/${s}taxa"
+    for f in "${postqual_files[@]}"; do
+      cp "$ROOT/${s}taxa/$f" "$OUT_DIR/${s}taxa/$f"
+    done
+  done
+  echo "Wrote posterior-quality data to: $OUT_DIR"
+  exit 0
+fi
 
 dist_sizes=( "10" "25" "50" "100" "250")
 # Size sets

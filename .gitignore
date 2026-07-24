@@ -10,7 +10,6 @@ quinn_cps
 *.state
 *.xz
 *subset.tsv
-graphs/*-data/
 
 # Ignore build files and binaries
 build
@@ -44,7 +43,6 @@ test*
 eval.all*
 updated.all*
 summary.*
-*Summary.*
 *.pdf
 *.png
 *.time
@@ -103,6 +101,6 @@ runAltVine.sh
 
 # ignore pilot runs
 *pilot*
-*posterior_quality*
 *kl_pdist*
 *kl_topo*
+dna_sims/hky_300sites_posterior_quality/*taxa/*

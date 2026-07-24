@@ -1,0 +1,6 @@
+ntaxa	vine	beast	vineflows	vinedev	beastdev	vineflowsdev
+10				0	0	0
+25				0	0	0
+50				0	0	0
+100				0	0	0
+250				0	0	0

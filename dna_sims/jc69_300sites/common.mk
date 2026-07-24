@@ -13,6 +13,7 @@ ROOT := $(MAIN_DIR)/$(ROOT_SUFFIX)
 BIN := $(MAIN_DIR)/bin
 PYTHON_SRC := $(MAIN_DIR)/python/src
 VINE_BIN := $(BIN)/vine/bin
+VINE_FLOWS_KL_OPT ?= -s $(VINE_NSAMP) -v 3 --cov DIST --planar-flow --radial-flow
 PHAST_BIN := $(MAIN_DIR)/phast/bin
 OTHER_BIN := $(MAIN_DIR)/bin
 BEAST_BIN := $(BIN)/beast/bin
@@ -107,6 +108,17 @@ tree.%.ml.nwk: tree.%.ml.mod
 
 tree.%.var.nwk tree.%.var-time tree.%.var.nwk.log: tree.%.fa 
 	/usr/bin/time -o tree.$*.var-time $(VINE_BIN)/vine $< -l tree.$*.var.nwk.log $(VAROPT) --mean tree.$*.mean.nwk > tree.$*.var.nwk
+
+# KL-only Vine + flows fit. These uniquely named artifacts are intentionally
+# absent from `all` and every legacy evaluation/summary rule.
+tree.%.vine_flows.kl.raw.nwk: tree.%.fa
+	@set -eu; \
+	log=tree.$*.vine_flows.kl.log; time=tree.$*.vine_flows.kl.time; \
+	mean=tree.$*.vine_flows.kl.mean.nwk; \
+	trap 'rm -f "$@.tmp"' EXIT; \
+	/usr/bin/time -o "$$time" $(VINE_BIN)/vine $< -l "$$log" \
+	  $(VINE_FLOWS_KL_OPT) --mean "$$mean" > $@.tmp; \
+	test -s $@.tmp; test -s "$$log"; mv $@.tmp $@
 
 tree.%.beast.xml:
 	cp "$(BEAST_TEMPLATE)" $@
@@ -557,3 +569,7 @@ archive_vine:
 	mv tree.*.rf $$archive_dir/; \
 	mv tree.*.mf $$archive_dir/; \
 	mv tree.*.dist $$archive_dir/
+
+# Explicit, inference-safe posterior KL targets. Nothing in `all` depends on
+# these rules; run `make kl-check-sources` and then `make kl-metrics` manually.
+include $(ROOT)/kl_metrics.mk

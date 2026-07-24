@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
 # Supplement figure: accuracy of the Taylor-approximated ELBO vs. a 100-sample
 # Monte Carlo estimate. Four panels, two per dataset size (25 / 50 taxa):
-#   Top row  (A, B): ELBO convergence trajectory for one representative replicate,
+#   Top row  (A, B): ELBO convergence trajectories for three replicate trees,
 #                    Taylor vs. Monte Carlo, showing similar convergence rate to
 #                    essentially the same optimum (differences invisible at the
 #                    full scale of the ELBO).
@@ -66,7 +66,7 @@ make_traj <- function(nt, tag, show_y = FALSE) {
   d <- subset(traj, ntaxa == nt)
   ggplot(d, aes(iter, elbo, color = method,
                 group = interaction(rep, method))) +
-    annotate("rect", xmin = -Inf, xmax = WARMUP_END + 0.5,
+    annotate("rect", xmin = 0, xmax = WARMUP_END + 0.5,
              ymin = -Inf, ymax = Inf, fill = "gray55", alpha = 0.16) +
     geom_line(linewidth = 0.4, alpha = 0.85) +
     scale_color_manual(values = method_pal, breaks = c("Taylor", "Monte Carlo")) +
@@ -97,17 +97,14 @@ make_diff <- function(nt, tag, show_y = FALSE) {
   d <- subset(dat, ntaxa == nt)
   s <- subset(summ, ntaxa == nt)
   xr <- range(d$rep)
-  lab <- sprintf("mean %+.2f ± %.2f  (%.3f%% of ELBO)", s$mean, s$sd, s$rel)
   ggplot(d, aes(rep, diff)) +
     annotate("rect", xmin = xr[1] - 0.5, xmax = xr[2] + 0.5,
              ymin = s$mean - s$sd, ymax = s$mean + s$sd,
-             fill = taylor_col, alpha = 0.13) +
+             fill = "gray55", alpha = 0.16) +
     geom_hline(yintercept = 0, linetype = "dashed",
                color = "gray40", linewidth = 0.35) +
     geom_hline(yintercept = s$mean, color = taylor_col, linewidth = 0.5) +
     geom_point(color = taylor_col, size = 1.5, alpha = 0.9) +
-    annotate("text", x = mean(xr), y = Inf, label = lab, hjust = 0.5, vjust = 1.4,
-             size = 2.2, color = "gray25", family = "Helvetica") +
     scale_x_continuous(breaks = 1:10) +
     labs(title = tag,
          x = "Replicate",

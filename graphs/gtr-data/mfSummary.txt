@@ -1,0 +1,2 @@
+ntaxa	true	std	NJ	std	vine	std	beast	std	mrbayes	std
+10	
