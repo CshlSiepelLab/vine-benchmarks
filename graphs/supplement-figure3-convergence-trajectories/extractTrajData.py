@@ -6,14 +6,17 @@ vine-vs-MCMC convergence supplement figure (makeLoglikGraphs.R).
 
 Per-iteration wall-clock time is not logged directly by any method, so we
 linearly interpolate each trajectory's iteration index against the method's
-*total* run time for that replicate (from eval.all.time.txt).
-
+*total* run time for that taxa size, taken from the mean-time-per-method
+summary in ../hky300-data/timeSummary.txt. That file only has the mean (and
+std) over replicates, not each replicate's own individually measured time,
+so every replicate at a given taxa size is normalized against the same mean
+total time.
 """
 import csv
 import os
-import re
 
 SIMDIR = "../../dna_sims/hky_300sites"
+TIME_SUMMARY_PATH = "../hky300-data/timeSummary.txt"
 TAXA_SIZES = [10, 25, 50, 100, 250, 500]
 REPS = [1, 2, 3]
 
@@ -56,20 +59,19 @@ def read_beast_traj(path):
     return rows
 
 
-def read_time_table(path):
-    with open(path) as fh:
-        lines = [l.rstrip("\n") for l in fh if l.strip()]
-    header = lines[0].split()
+def read_time_summary(path):
+    """Return {ntaxa: {"vine": mean_sec, "beast": mean_sec}} from
+    timeSummary.txt. Columns are positional (ntaxa, vine, std, beast, std,
+    beast-beagle, std, mrbayes, std, mrbayes-beagle, std) -- "std" repeats,
+    so this can't be read by header name."""
     out = {}
-    for line in lines[1:]:
-        toks = [t for t in re.split(r"\t+", line) if t != ""]
-        if len(toks) != len(header):
-            continue 
-        rec = dict(zip(header, toks))
-        try:
-            out[int(rec["samp"])] = rec
-        except (KeyError, ValueError):
-            pass
+    with open(path) as fh:
+        next(fh)  # header
+        for line in fh:
+            toks = line.split()
+            if not toks:
+                continue
+            out[int(toks[0])] = {"vine": float(toks[1]), "beast": float(toks[3])}
     return out
 
 
@@ -78,15 +80,16 @@ def main():
                              "data", "convergence_traj.csv")
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
 
+    time_summary = read_time_summary(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), TIME_SUMMARY_PATH))
+
     rows_out = []
     for ntaxa in TAXA_SIZES:
         d = os.path.join(SIMDIR, f"{ntaxa}taxa")
-        times = read_time_table(os.path.join(d, "eval.all.time.txt"))
+        vine_total = time_summary[ntaxa]["vine"]
+        beast_total = time_summary[ntaxa]["beast"]
 
         for rep in REPS:
-            vine_total = float(times[rep]["vine"])
-            beast_total = float(times[rep]["beast"])
-
             vine_traj = read_vine_traj(os.path.join(d, f"tree.{rep}.var.nwk.log"))
             vine_max = max(s for s, _ in vine_traj)
             for state, ll in vine_traj:

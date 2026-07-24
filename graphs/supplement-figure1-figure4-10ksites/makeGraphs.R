@@ -15,7 +15,7 @@ script_dir <- if (length(file_arg) > 0) {
 }
 
 graphs_dir <- dirname(script_dir)
-data_dir <- file.path(graphs_dir, "hky-10k-graphs")
+data_dir <- file.path(graphs_dir, "hky10k-data")
 
 # Helper: save a plot as a compact PDF, using cairo if available
 save_pdf <- function(plot, filename, width = 3, height = 3) {
@@ -297,5 +297,5 @@ ptime_speed <- ptime_speed & theme(
   plot.tag.position = c(0.01, 0.99)
 )
 save_pdf(ptime_speed,
-         file.path(script_dir, "supplement-figure3.pdf"),
+         file.path(script_dir, "supplement-figure4.pdf"),
          width = 6, height = 3)
