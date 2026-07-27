@@ -1,18 +1,42 @@
 # Vine-Benchmarks
 
-This *vine-benchmarks* repository contains the instructions and scripts for reproducing the data processing, benchmark simulations and figure generation for the manuscript available at https://pmc.ncbi.nlm.nih.gov/articles/PMC13042005/
+This *vine-benchmarks* repository contains the instructions and scripts for reproducing the data processing, benchmark simulations and figure generation for the manuscript:
+
+Siepel, A., Hassett, R., & Staklinski, S. J. (2026). VINE: Variational inference for scalable Bayesian reconstruction of species and cell-lineage phylogenies. *bioRxiv*. https://doi.org/10.64898/2025.12.24.696405 (under revision for Nature Methods)
 
 ## Dependencies
 
-### Create Binary Directory
+### Install Phast and Vine
 
+Choose **one** of the two options below.
+
+#### Option A: Install via Conda
+
+```sh
+conda install -c conda-forge -c bioconda vine-phylo
+```
+
+Note: The steps below still expect a `bin` directory at the repository root for installing BEAST, MrBayes, and the helper Python scripts, so create one if it doesn't already exist:
+```sh
+mkdir bin
+```
+
+The Makefiles throughout this repository expect Vine and Phast binaries at `bin/vine/bin` and `bin/phast/bin` (the layout produced by Option B). Rather than editing every Makefile's `VINE_BIN`/`PHAST_BIN` paths, symlink the conda-installed binaries into that layout instead:
+```sh
+mkdir -p bin/vine/bin bin/phast/bin
+for f in vine evalTrees; do ln -s "$(command -v $f)" bin/vine/bin/; done
+for f in phyloFit tree_doctor base_evolve; do ln -s "$(command -v $f)" bin/phast/bin/; done
+```
+
+#### Option B: Build from Source
+
+Create a binary directory:
 ```sh
 mkdir bin
 cd bin
 ```
 
-### Install Phast in Binary Directory
-
+Install Phast in the binary directory:
 ```sh
 git clone git@github.com:CshlSiepelLab/phast.git
 cd phast
@@ -21,8 +45,7 @@ cmake --build build
 cmake --install build
 ```
 
-### Install Vine in Binary Directory
-
+Install Vine in the binary directory:
 ```sh
 git clone git@github.com:CshlSiepelLab/vine.git
 cd vine
@@ -33,11 +56,6 @@ cmake -S . -B build \
   -DCMAKE_INSTALL_PREFIX="$(pwd)"
 cmake --build build
 cmake --install build
-
-```
-Note: Can also install vine+phast with the below commands:
-```sh
-conda install -c conda-forge -c bioconda vine-phylo
 ```
 
 ### Install BEAST in Binary Directory
@@ -71,7 +89,7 @@ done
 
 ## Run Simulations under HKY Model for 300 site alignments
 
-In dna_sims/hky_300sites/common.mk update `MAIN_DIR` to the absolute path of the cloned vine_benchmarks repository
+In `dna_sims/hky_300sites/common.mk` update `MAIN_DIR` to the absolute path of the cloned vine_benchmarks repository
 
 Run make commands in common.mk
 
@@ -84,7 +102,21 @@ make eval.all.lnl.txt
 make eval.all.time.txt
 ```
 
+### Run Simulations under JC69 Model for 300 site alignments
+
+In `dna_sims/jc69_300sites/common.mk` update `MAIN_DIR` to the absolute path of the cloned vine_benchmarks repository
+
+To run simulations for Dodonaphy, Geophy and Vaiphy models, you must build their singularity containers *.sif files in `containers/` from the existing *.def files
+
+Run make commands in common.mk
+
 ## Plot Manuscript Figures
+
+The R dependencies needed to run the plotting scripts below are listed in `graphs/environment.yaml`. Create and activate the conda environment with:
+```sh
+conda env create -f environment.yaml -n r_env
+conda activate r_env
+```
 
 Intermediate data files for manuscript figures are already stored in the `graphs` directory, in subdirectories/files ending in `-data`, since regenerating all files from scratch using the necessary MCMC and ML methods is time-consuming. Note: If you have rerun simulations, extract results across taxa into the corresponding `graphs` `-data` location for plotting using the `graphs/extractGraphData.sh` script. Options for which simulation data to extract for plotting are described in `graphs/extractGraphData.sh`
 

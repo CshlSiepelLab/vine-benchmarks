@@ -1,0 +1,33 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the associated manuscript below."
+title: "vine-benchmarks"
+type: software
+authors:
+  - family-names: Siepel
+    given-names: Adam
+    orcid: "https://orcid.org/0000-0002-3557-7219"
+  - family-names: Hassett
+    given-names: Rebecca
+    orcid: "https://orcid.org/0000-0001-5133-9387"
+  - family-names: Staklinski
+    given-names: Stephen J.
+    orcid: "https://orcid.org/0000-0002-1746-6320"
+repository-code: "https://github.com/CshlSiepelLab/vine-benchmarks"
+preferred-citation:
+  type: article
+  title: "VINE: Variational inference for scalable Bayesian reconstruction of species and cell-lineage phylogenies"
+  authors:
+    - family-names: Siepel
+      given-names: Adam
+      orcid: "https://orcid.org/0000-0002-3557-7219"
+    - family-names: Hassett
+      given-names: Rebecca
+      orcid: "https://orcid.org/0000-0001-5133-9387"
+    - family-names: Staklinski
+      given-names: Stephen J.
+      orcid: "https://orcid.org/0000-0002-1746-6320"
+  year: 2026
+  journal: "bioRxiv"
+  doi: "10.64898/2025.12.24.696405"
+  url: "https://doi.org/10.64898/2025.12.24.696405"
+  notes: "Under revision for Nature Methods"
