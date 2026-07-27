@@ -12,7 +12,7 @@
 #curl -L -O https://data.nextstrain.org/files/ncov/open/100k/metadata.tsv.xz
 
 # however, the archived versions from Feb 25, 2026 appear to be available here
-curl -L -o sequences.fasta.xz https://nextstrain-data.s3.amazonaws.com/files/ncov/open/100k/sequences.fasta.xz?versionId=VE0xefHcGH31NBnekZFT8Mw1ILlWwCY
+curl -L -o sequences.fasta.xz https://nextstrain-data.s3.amazonaws.com/files/ncov/open/100k/sequences.fasta.xz?versionId=VE0xefHcGH31NBnekZFT8Mw1ILlWwCYm
 curl -L -o aligned.fasta.xz https://nextstrain-data.s3.amazonaws.com/files/ncov/open/aligned.fasta.xz?versionId=10lRec1ySVWc2mLoPd1b7LOb5OLbas_i
 curl -L -o metadata.tsv.xz https://nextstrain-data.s3.amazonaws.com/files/ncov/open/100k/metadata.tsv.xz?versionId=qewluWuTeTNFkoULKvma8MY0.2AlstLe
 

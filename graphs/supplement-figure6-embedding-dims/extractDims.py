@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build dimSummary25.txt / dimSummary50.txt for supplement figure S4.
+"""Build dimSummary25.txt / dimSummary50.txt for figure 3 & supplement figure S6.
 
 For each embedding dimension and each geometry (Euclidean, hyperbolic):
   - Delta lnl (VINE - BEAST) is summarized as mean +/- SD over the 10
