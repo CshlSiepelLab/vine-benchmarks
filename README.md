@@ -82,6 +82,7 @@ make install-exec bindir=/path/to/bin
 
 ```sh
 cd python/src
+pip install -r requirements.txt
 for f in addMrbayesModelToNex bdTree3 convertTrees fa2nex nex2nwk nwk2nex nex2fa; do
 pyinstaller --onefile --distpath ../../bin --workpath ../../build --specpath ../../build "$f.py"
 done
