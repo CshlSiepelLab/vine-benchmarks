@@ -65,6 +65,8 @@ Follow instructions here: https://www.beast2.org/
 ```sh
 wget https://github.com/CompEvol/beast2/releases/download/v2.7.7/BEAST.v2.7.7.Linux.x86.tgz
 tar -zxvf BEAST.v2.7.7.Linux.x86.tgz
+./beast/bin/packagemanager -list
+./beast/bin/packagemanager -add feast
 ```
 
 ### Install MrBayes in Binary Directory
