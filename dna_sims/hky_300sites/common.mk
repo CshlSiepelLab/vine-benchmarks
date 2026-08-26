@@ -124,7 +124,7 @@ tree.%.beast.xml:
 
 tree.%.beast.term tree.%.beast-tree.trees tree.%.beast.log: tree.%.beast.xml tree.%.fa
 	rm -f tree.$*.beast-tree.trees tree.$*.beast.log
-	"$(BEAST)" -java -working -D fastapath=tree.$*.fa -D mcmclength=$(BEAST_MCMCLEN) -D samplefreq=$(BEAST_SAMPLEFREQ) -D printfreq=$(MCMC_PRINTFREQ) $< > tree.$*.beast.term
+	"$(BEAST)" -java -working -D fastapath=tree.$*.fa -D mcmclength=$(BEAST_MCMCLEN) -D samplefreq=$(MCMC_SAMPLEFREQ) -D printfreq=$(MCMC_PRINTFREQ) $< > tree.$*.beast.term
 
 tree.%.beast-beagle.xml:
 	cp "$(BEAST_TEMPLATE)" $@
@@ -162,7 +162,7 @@ tree.%.nex: tree.%.fa
 # MrBayes input file prep (convert fasta to nexus and add MrBayes block to the end of nexus to specify the model)
 tree.%.mrbayes.nex: tree.%.nex
 	$(BIN)/addMrbayesModelToNex --in_nexus tree.$*.nex --out_nexus tree.$*.mrbayes.nex --mcmc_length $(MRBAYES_MCMCLEN) --model HKY \
-		--sample_freq $(MRBAYES_SAMPLEFREQ) --print_freq $(MCMC_PRINTFREQ) --diagn_freq $(MCMC_PRINTFREQ)
+		--sample_freq $(MCMC_SAMPLEFREQ) --print_freq $(MCMC_PRINTFREQ) --diagn_freq $(MCMC_PRINTFREQ)
 
 tree.%.mrbayes-beagle.nex: tree.%.nex
 	$(BIN)/addMrbayesModelToNex --in_nexus tree.$*.nex --out_nexus tree.$*.mrbayes-beagle.nex --mcmc_length $(MRBAYES_MCMCLEN) --model HKY \
