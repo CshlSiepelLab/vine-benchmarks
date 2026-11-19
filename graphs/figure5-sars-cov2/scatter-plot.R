@@ -1,11 +1,16 @@
 #!/usr/bin/env Rscript
 
 suppressPackageStartupMessages({
-  library(tidyverse)
+  # only readr/tibble/ggplot2 (+ scales::alpha) from the tidyverse are used;
+  # loading them directly avoids needing the full tidyverse (ragg needs
+  # FreeType headers, which the rplotting container lacks)
+  library(readr)
+  library(tibble)
+  library(ggplot2)
   library(ggpointdensity)
 })
 
-vine_file  <- "vine-small.dist"
+vine_file  <- "vine_twostage-small.dist"
 beast_file <- "beast-small.dist"
 out_file   <- "scatter.pdf"
 
@@ -40,7 +45,7 @@ p <- ggplot(df, aes(x = beast, y = vine)) +
         ) +
         labs(
                 x = "BEAST 2 distance",
-                y = "VINE distance"
+                y = "Vine --posterior distance"
         ) +
         coord_equal() +
         theme_classic(base_size = 7) +

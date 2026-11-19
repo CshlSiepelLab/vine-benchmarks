@@ -17,10 +17,10 @@ dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 data_dir <- file.path(dirname(root_dir), "hky300-posterioranalysis-data")
 
 taxa <- c(10, 25, 50, 100, 250, 500, 1000)
-method_levels <- c("Vine", "Vine + flows", "BEAST2", "MrBayes")
+method_levels <- c("Vine", "Vine --posterior", "BEAST2", "MrBayes")
 method_colors <- c(
   "Vine" = "#F28E2B",
-  "Vine + flows" = "#76B7B2",
+  "Vine --posterior" = "#76B7B2",
   "BEAST2" = "#59A14F",
   "MrBayes" = "#E15759"
 )
@@ -42,11 +42,11 @@ mean_sd <- function(x) {
 ci_rows <- lapply(taxa, function(n) {
   vine <- read_replicates(file.path(data_dir, paste0(n, "taxa"),
                                     "vine.eval.all.dist.txt"))
-  flows <- read_replicates(file.path(data_dir, paste0(n, "taxa"),
-                                     "vine_flows.eval.all.dist.txt"))
+  twostage <- read_replicates(file.path(data_dir, paste0(n, "taxa"),
+                                     "vine_twostage.eval.all.dist.txt"))
   values <- list(
     "Vine" = vine$vine_95CI,
-    "Vine + flows" = flows$vine_95CI,
+    "Vine --posterior" = twostage$vine_95CI,
     "BEAST2" = vine$beast_95CI,
     "MrBayes" = vine$mrbayes_95CI
   )
@@ -59,7 +59,7 @@ ci_data <- do.call(rbind, ci_rows)
 
 kl_files <- c(
   "Vine" = "vine.eval.all.kl_pdist_mrbayes.txt",
-  "Vine + flows" = "vine_flows.eval.all.kl_pdist_mrbayes.txt",
+  "Vine --posterior" = "vine_twostage.eval.all.kl_pdist_mrbayes.txt",
   "BEAST2" = "beast.eval.all.kl_pdist_mrbayes.txt"
 )
 kl_rows <- lapply(taxa, function(n) {

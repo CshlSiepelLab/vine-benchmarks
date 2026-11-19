@@ -9,12 +9,13 @@
 # so they are rebuilt on demand and never force a re-render once the panels are
 # current.
 #
-# PARAMETERIZATION (locked in 2026-07-24): Figure 5 uses the DEFAULT VINE run
-# for every panel.  Its point estimates match BEAST tightly, whereas the
-# calibrated -v 1 run trades a little scatter accuracy for wider, better-
-# calibrated credible intervals and is reserved for the posterior-uncertainty
-# supplement (built under ../../dna_real_data/sars-cov2/graphs/uncertainty).
-# See README.md.  The -v 1 panel variants are kept in archive.flows-v1-panels/.
+# PARAMETERIZATION (2026-11-18): the three 364-taxon panels (densitree,
+# tanglegram, scatter) use the VINE --posterior run, vine_twostage-small.nwk
+# (`make vine_twostage` in SRCDIR), labelled "Vine --posterior". The 1060-taxon
+# panels (vine-large.densitree, embedding-pca) still use the plain VINE run
+# vine-large.nwk, since --posterior was only run on the 364-taxon subset.
+# (Previously, 2026-07-24: the default VINE run for every panel; the -v 1
+# renderings are kept in archive.flows-v1-panels/.) See README.md.
 
 .SECONDARY:
 .PRECIOUS:
@@ -32,7 +33,7 @@ PYTHON_SRC = $(MAIN_DIR)/python/src
 FONTENV = FONTCONFIG_PATH=/etc/fonts FONTCONFIG_FILE=/etc/fonts/fonts.conf
 RSCRIPT ?= $(FONTENV) /home/asiepel/miniforge3/envs/rfig5/bin/Rscript
 
-TREEANN = $(BIN)/beast/bin/treeannotator -lowMem true -height keep -burnin 0
+TREEANN = $(MAIN_DIR)/beast/bin/treeannotator -lowMem true -height keep -burnin 0
 
 .PHONY: all graphs clean-products clean-intermediates
 
@@ -41,16 +42,16 @@ all graphs: vine-vs-beast.densitree.pdf tanglegram.compact.pdf scatter.pdf \
             vine-large.densitree.pdf embedding-pca.pdf
 
 vine-vs-beast.densitree.pdf: densitree-compare.R \
-        vine-small.nex vine-small.mcc.nex beast-small.nex beast-small.mcc.nex \
+        vine_twostage-small.nex vine_twostage-small.mcc.nex beast-small.nex beast-small.mcc.nex \
         small-subset.tsv
 	$(RSCRIPT) $<
 
 # tanglegram.R emits the compact and the full version in one pass.
 tanglegram.compact.pdf vine-vs-beast.tanglegram.pdf: tanglegram.R \
-        vine-small.mcc.nex beast-small.mcc.nex small-subset.tsv
+        vine_twostage-small.mcc.nex beast-small.mcc.nex small-subset.tsv
 	$(RSCRIPT) $<
 
-scatter.pdf: scatter-plot.R vine-small.dist beast-small.dist
+scatter.pdf: scatter-plot.R vine_twostage-small.dist beast-small.dist
 	$(RSCRIPT) $<
 
 vine-large.densitree.pdf: densitree-large.R \
@@ -61,7 +62,7 @@ embedding-pca.pdf: embedding-pca.R vine-large.emb.tsv large-subset.tsv
 	$(RSCRIPT) $<
 
 # ---- raw inputs: symlinked from the analysis dir (never copied) -----------
-vine-small.nwk vine-large.nwk vine-small.flows-v1.nwk beast-small-tree.trees \
+vine-small.nwk vine-large.nwk vine-small.flows-v1.nwk vine_twostage-small.nwk beast-small-tree.trees \
 small-subset.tsv large-subset.tsv vine-large.emb.tsv:
 	ln -sf $(SRCDIR)/$@ $@
 
@@ -69,7 +70,7 @@ small-subset.tsv large-subset.tsv vine-large.emb.tsv:
 # BEAST: raw time-tree posterior -> substitutions, burn-in removed, rates
 # stripped (.nex) -> newick -> pairwise-distance table.
 beast-%.nex: beast-%-tree.trees
-	python3 "$(PYTHON_SRC)/time2subs.py" --skip 2000 $< tmp.$*.nex
+	python3 python/time2subs.py --skip 2000 $< tmp.$*.nex
 	sed 's/\[\&rate=[.0-9]*\]//g' tmp.$*.nex > $@
 	rm -f tmp.$*.nex
 
@@ -78,6 +79,9 @@ beast-%.nwk: beast-%.nex
 
 # VINE: newick posterior -> nexus.
 vine-%.nex: vine-%.nwk
+	$(BIN)/convertTrees -o nexus $< > $@
+
+vine_twostage-%.nex: vine_twostage-%.nwk
 	$(BIN)/convertTrees -o nexus $< > $@
 
 # Maximum-clade-credibility trees for the tanglegram / densitrees.
@@ -96,4 +100,4 @@ clean-products:
 # Remove the big rebuildable intermediates but keep the small cached summaries
 # (*.mcc.nex, *.dist) and the rendered panels.
 clean-intermediates:
-	rm -f beast-small.nex beast-small.nwk vine-small.nex vine-large.nex
+	rm -f beast-small.nex beast-small.nwk vine-small.nex vine_twostage-small.nex vine-large.nex

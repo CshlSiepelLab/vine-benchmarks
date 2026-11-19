@@ -151,8 +151,8 @@ make_cloud_mcc_panel <- function(ts_cloud, mcc_tree, meta_df,
 }
 
 # ---- inputs ----
-vine_trees_file  <- "vine-small.nex"
-vine_mcc_file    <- "vine-small.mcc.nex"
+vine_trees_file  <- "vine_twostage-small.nex"
+vine_mcc_file    <- "vine_twostage-small.mcc.nex"
 
 beast_trees_file <- "beast-small.nex"
 beast_mcc_file   <- "beast-small.mcc.nex"
@@ -210,7 +210,7 @@ class(beast_cloud) <- "multiPhylo"
 # ---- build panels (fixed coord limits) ----
 vine_panel_obj <- make_cloud_mcc_panel(
   vine_cloud, vine_mcc_r, meta_df,
-  panel_title = "VINE"
+  panel_title = "Vine --posterior"
 )
 
 beast_panel_obj <- make_cloud_mcc_panel(

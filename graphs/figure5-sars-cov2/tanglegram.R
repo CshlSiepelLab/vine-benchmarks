@@ -58,7 +58,7 @@ add_date_legend <- function(leg_labels, leg_cols, ncols, cex_val, title_cex,
 }
 
 # ---- inputs ----
-vine_mcc_file  <- "vine-small.mcc.nex"
+vine_mcc_file  <- "vine_twostage-small.mcc.nex"
 beast_mcc_file <- "beast-small.mcc.nex"
 meta_file      <- "small-subset.tsv"
 out_full       <- "vine-vs-beast.tanglegram.pdf"
@@ -136,7 +136,7 @@ plot(co,
 add_tip_points(co, tc_left, tc_right, pt_cex = 0.6)
 
 # Panel labels in top outer margin (at = normalized device x, 0–1)
-mtext("VINE",    outer = TRUE, side = 3, at = 0.25, line = 0.5,
+mtext("Vine --posterior", outer = TRUE, side = 3, at = 0.25, line = 0.5,
       font = 2, cex = 1.2, adj = 0.5)
 mtext("BEAST 2", outer = TRUE, side = 3, at = 0.75, line = 0.5,
       font = 2, cex = 1.2, adj = 0.5)
@@ -182,7 +182,7 @@ par(old_par)
 add_tip_points(co, tc_left, tc_right, pt_cex = 1.4)
 
 # Title-to-tree gap halved: line = 0.2 (was 0.4)
-mtext("VINE",    outer = TRUE, side = 3, at = 0.25, line = 0.2,
+mtext("Vine --posterior", outer = TRUE, side = 3, at = 0.25, line = 0.2,
       font = 2, cex = 0.75, adj = 0.5)
 mtext("BEAST 2", outer = TRUE, side = 3, at = 0.75, line = 0.2,
       font = 2, cex = 0.75, adj = 0.5)

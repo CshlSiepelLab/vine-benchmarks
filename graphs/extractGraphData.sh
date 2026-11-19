@@ -41,7 +41,7 @@ elif [[ "$model" == "treeprior" ]]; then
   ROOT="/local/storage/no-backup/vine-benchmarks/dna_sims/hky_300sites_treeprior"
   OUT_DIR="$graphs_dir/hky300-treeprior-data"
 elif [[ "$model" == "hky300-postqual" ]]; then
-  ROOT="/local/storage/no-backup/vine-benchmarks/dna_sims/hky_300sites_posterior_quality"
+  ROOT="/grid/siepel/data/vine-benchmarks/dna_sims/hky_300sites_posterior_quality"
   OUT_DIR="$graphs_dir/hky300-posterioranalysis-data"
 else
   ROOT="/local/storage/no-backup/vine-benchmarks/dna_sims/jc69_300sites"
@@ -57,9 +57,9 @@ if [[ "$model" == "hky300-postqual" ]]; then
   postqual_sizes=( "10" "25" "50" "100" "250" "500" "1000" )
   postqual_files=(
     "vine.eval.all.dist.txt"
-    "vine_flows.eval.all.dist.txt"
+    "vine_twostage.eval.all.dist.txt"
     "vine.eval.all.kl_pdist_mrbayes.txt"
-    "vine_flows.eval.all.kl_pdist_mrbayes.txt"
+    "vine_twostage.eval.all.kl_pdist_mrbayes.txt"
     "beast.eval.all.kl_pdist_mrbayes.txt"
   )
   for s in "${postqual_sizes[@]}"; do

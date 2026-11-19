@@ -11,9 +11,9 @@ derived summaries the plots need are kept.
 
 | Output | Script | Shows |
 |---|---|---|
-| `vine-vs-beast.densitree.pdf` | `densitree-compare.R` | VINE vs BEAST 2 posterior tree clouds (364 taxa) |
-| `tanglegram.compact.pdf` | `tanglegram.R` | MCC-tree tanglegram, VINE vs BEAST 2 |
-| `scatter.pdf` | `scatter-plot.R` | pairwise patristic distances, VINE vs BEAST 2 |
+| `vine-vs-beast.densitree.pdf` | `densitree-compare.R` | Vine --posterior vs BEAST 2 posterior tree clouds (364 taxa) |
+| `tanglegram.compact.pdf` | `tanglegram.R` | MCC-tree tanglegram, Vine --posterior vs BEAST 2 |
+| `scatter.pdf` | `scatter-plot.R` | pairwise patristic distances, Vine --posterior vs BEAST 2 |
 | `vine-large.densitree.pdf` | `densitree-large.R` | VINE posterior tree cloud (1060 taxa) |
 | `embedding-pca.pdf` | `embedding-pca.R` | PCA of the VINE latent embedding (1060 taxa) |
 
@@ -21,8 +21,14 @@ derived summaries the plots need are kept.
 
 ## Which VINE run
 
-All panels use the **default** VINE run (`vine-small.nwk`, `vine-large.nwk` in
-the analysis dir). Its point estimates match BEAST 2 tightly. The calibrated
+The three 364-taxon panels (densitree, tanglegram, scatter) use the VINE
+`--posterior` run (`vine_twostage-small.nwk` in the analysis dir), labelled
+"Vine --posterior". The two 1060-taxon panels use the plain VINE run
+(`vine-large.nwk`); `--posterior` was only run on the 364-taxon subset.
+
+Previously (2026-07-24) all panels used the **default** VINE run
+(`vine-small.nwk`, `vine-large.nwk`), whose point estimates match BEAST 2
+tightly. The calibrated
 `-v 1` run (`-S DIST -F -Z -v 1`) trades a little pairwise-distance accuracy for
 wider, better-calibrated credible intervals and is used instead for the
 **posterior-uncertainty supplement**, generated separately under
