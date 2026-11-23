@@ -29,6 +29,7 @@ From: python:3.11-slim
     cd /opt
     git clone https://github.com/CshlSiepelLab/graphposterior.git
     cd graphposterior
+    git checkout 9be0c2c3ce35010830d438852fb278584f5ae941   # pinned (2026-04-08), as installed for the benchmarks
     pip install --no-cache-dir -e .
 
     # Install simulation executable for graphposterior usage

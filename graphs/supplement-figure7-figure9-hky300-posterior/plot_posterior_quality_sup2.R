@@ -7,19 +7,24 @@ suppressPackageStartupMessages({
 
 args_all <- commandArgs(trailingOnly = FALSE)
 file_arg <- sub("^--file=", "", args_all[grep("^--file=", args_all)])
-root_dir <- if (length(file_arg)) dirname(normalizePath(file_arg)) else getwd()
-out_dir <- file.path(root_dir, "plots")
+script_dir <- if (length(file_arg)) dirname(normalizePath(file_arg)) else getwd()
+# Tables live in dna_sims/hky_300sites_posterior_quality/<n>taxa (built by its
+# Makefile / slurm/fig3-eval.sbatch); an optional argument overrides that.
+args <- commandArgs(trailingOnly = TRUE)
+root_dir <- if (length(args)) normalizePath(args[1]) else
+  file.path(dirname(dirname(script_dir)), "dna_sims", "hky_300sites_posterior_quality")
+out_dir <- file.path(script_dir, "plots")
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 
 taxa <- c(10, 25, 50, 100, 250, 500, 1000)
 all_method_levels <- c(
-  "Vine", "Vine + flows", "BEAST2", "BEAST2 + BEAGLE",
+  "Vine", "Vine --posterior", "BEAST2", "BEAST2 + BEAGLE",
   "MrBayes", "MrBayes + BEAGLE"
 )
-core_method_levels <- c("Vine", "Vine + flows", "BEAST2", "MrBayes")
+core_method_levels <- c("Vine", "Vine --posterior", "BEAST2", "MrBayes")
 method_colors <- c(
   "Vine" = "#F28E2B",
-  "Vine + flows" = "#76B7B2",
+  "Vine --posterior" = "#76B7B2",
   "BEAST2" = "#59A14F",
   "BEAST2 + BEAGLE" = "#8BC184",
   "MrBayes" = "#E15759",
@@ -70,11 +75,11 @@ collect_metric <- function(metric, include_beagle = FALSE) {
       root_dir, paste0(n, "taxa"), paste0("vine.eval.all.", spec$file, ".txt")
     ))
     flows <- read_replicates(file.path(
-      root_dir, paste0(n, "taxa"), paste0("vine_flows.eval.all.", spec$file, ".txt")
+      root_dir, paste0(n, "taxa"), paste0("vine_twostage.eval.all.", spec$file, ".txt")
     ))
     sources <- list(
       "Vine" = list(data = vine, key = "vine"),
-      "Vine + flows" = list(data = flows, key = "vine"),
+      "Vine --posterior" = list(data = flows, key = "vine"),
       "BEAST2" = list(data = vine, key = "beast"),
       "BEAST2 + BEAGLE" = list(data = vine, key = "beast-beagle"),
       "MrBayes" = list(data = vine, key = "mrbayes"),
@@ -104,14 +109,14 @@ collect_model_fit <- function() {
       root_dir, paste0(n, "taxa"), "vine.eval.all.mf.txt"
     ))
     flows <- read_replicates(file.path(
-      root_dir, paste0(n, "taxa"), "vine_flows.eval.all.mf.txt"
+      root_dir, paste0(n, "taxa"), "vine_twostage.eval.all.mf.txt"
     ))
     true_mean <- mean(vine$true)
     sources <- list(
       "Vine" = list(data = vine, key = "vine", file_key = "vine",
                     local = TRUE),
-      "Vine + flows" = list(data = flows, key = "vine",
-                            file_key = "vine_flows", local = TRUE),
+      "Vine --posterior" = list(data = flows, key = "vine",
+                            file_key = "vine_twostage", local = TRUE),
       "BEAST2" = list(data = vine, key = "beast", file_key = "beast",
                       local = FALSE),
       "MrBayes" = list(data = vine, key = "mrbayes", file_key = "mrbayes",
@@ -157,14 +162,28 @@ paper_theme <- theme_minimal(base_size = 8) +
     plot.margin = margin(8, 10, 5, 10)
   )
 
+# Log-scale panels start at log_floor. ggplot draws bars from 0 in transformed
+# space, i.e. from 1 on a log10 axis, so values below 1 would hang down from 1;
+# instead plot log10(value / log_floor), which puts every bar's base at
+# log_floor, and label the axis in the original units.
+log_floor <- 0.1
+
 metric_plot <- function(d, y_label, log_y = FALSE, zero_floor = TRUE) {
-  p <- ggplot(d, aes(x = ntaxa, y = mean, fill = method)) +
+  if (log_y) {
+    to_log <- function(x) log10(pmax(x, log_floor) / log_floor)
+    d$y <- to_log(d$mean)
+    d$ymin <- to_log(d$mean - d$sd)   # error bars below log_floor end at the axis
+    d$ymax <- to_log(d$mean + d$sd)
+  } else {
+    d$y <- d$mean
+    d$ymin <- if (zero_floor) pmax(0, d$mean - d$sd) else d$mean - d$sd
+    d$ymax <- d$mean + d$sd
+  }
+  p <- ggplot(d, aes(x = ntaxa, y = y, fill = method)) +
     geom_col(position = position_dodge(width = 0.9), width = 0.8,
              show.legend = TRUE) +
     geom_errorbar(
-      aes(ymin = if (log_y) pmax(mean - sd, .Machine$double.eps)
-          else if (zero_floor) pmax(0, mean - sd) else mean - sd,
-          ymax = mean + sd),
+      aes(ymin = ymin, ymax = ymax),
       position = position_dodge(width = 0.9), width = 0.18, linewidth = 0.35,
       show.legend = TRUE
     ) +
@@ -177,9 +196,12 @@ metric_plot <- function(d, y_label, log_y = FALSE, zero_floor = TRUE) {
     )) +
     paper_theme
   if (log_y) {
-    p + scale_y_log10(
-      breaks = 10^(0:5),
-      labels = function(x) format(x, scientific = FALSE, trim = TRUE)
+    ticks <- 10^(-1:5)
+    p + scale_y_continuous(
+      limits = c(0, NA),
+      breaks = log10(ticks / log_floor),
+      labels = format(ticks, scientific = FALSE, trim = TRUE, drop0trailing = TRUE),
+      expand = expansion(mult = c(0, 0.05))   # axis starts exactly at log_floor
     )
   } else {
     p + scale_y_continuous(expand = expansion(mult = c(0, 0.05)))

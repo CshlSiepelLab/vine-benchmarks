@@ -24,18 +24,20 @@ From: python:3.7-slim
         time && \
         rm -rf /var/lib/apt/lists/*
 
-    pip install --no-cache-dir scipy
+    pip install --no-cache-dir scipy==1.7.3
 
     rm -rf /tmp/hydraPlus || true
     git clone https://github.com/mattapow/hydraPlus.git /tmp/hydraPlus
+    git -C /tmp/hydraPlus checkout 590f1ce   # pinned: HEAD when the benchmark image was built
     pip install --no-cache-dir /tmp/hydraPlus
     rm -rf /tmp/hydraPlus
 
-    pip install --no-cache-dir cython
-    pip install --no-cache-dir numpy
+    pip install --no-cache-dir cython==0.29.37
+    pip install --no-cache-dir numpy==1.21.6
 
     rm -rf /tmp/dodonaphy || true
     git clone https://github.com/mattapow/dodonaphy.git /tmp/dodonaphy
+    git -C /tmp/dodonaphy checkout 49104d8   # pinned: HEAD when the benchmark image was built
     pip install --no-cache-dir /tmp/dodonaphy
     rm -rf /tmp/dodonaphy
 

@@ -1,4 +1,12 @@
 #!/usr/bin/env Rscript
+# Supplementary Fig. S10: KL divergence of the VINE posteriors from MrBayes and
+# BEAST2 on the HKY300 sims.
+# Usage: Rscript plot_posterior_quality_sup1.R [data_root]
+#   (data_root default: ../../dna_sims/hky_300sites_posterior_quality)
+#   Panels C-D (per-split topology KL) use compareTrees' Mean_split_KL_refnorm
+#   (normalized by the number of distinct splits in the reference sample;
+#   tables *.eval.all.kl_topo_refnorm_*, from `make kl-refnorm`).
+#   Output: plots/hky300_posterior_quality_sup1.pdf (in this folder)
 
 suppressPackageStartupMessages({
   library(ggplot2)
@@ -7,15 +15,20 @@ suppressPackageStartupMessages({
 
 args_all <- commandArgs(trailingOnly = FALSE)
 file_arg <- sub("^--file=", "", args_all[grep("^--file=", args_all)])
-root_dir <- if (length(file_arg)) dirname(normalizePath(file_arg)) else getwd()
-out_dir <- file.path(root_dir, "plots")
+script_dir <- if (length(file_arg)) dirname(normalizePath(file_arg)) else getwd()
+# Tables live in dna_sims/hky_300sites_posterior_quality/<n>taxa (built by its
+# Makefile / slurm/fig3-eval.sbatch); an optional argument overrides that.
+args <- commandArgs(trailingOnly = TRUE)
+root_dir <- if (length(args)) normalizePath(args[1]) else
+  file.path(dirname(dirname(script_dir)), "dna_sims", "hky_300sites_posterior_quality")
+out_dir <- file.path(script_dir, "plots")
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 
 taxa <- c(10, 25, 50, 100, 250, 500, 1000)
-method_levels <- c("Vine", "Vine + flows", "BEAST2", "MrBayes")
+method_levels <- c("Vine", "Vine --posterior", "BEAST2", "MrBayes")
 method_colors <- c(
   "Vine" = "#F28E2B",
-  "Vine + flows" = "#76B7B2",
+  "Vine --posterior" = "#76B7B2",
   "BEAST2" = "#59A14F",
   "MrBayes" = "#E15759"
 )
@@ -39,11 +52,11 @@ collect_kl <- function(metric, reference) {
   suffix <- paste0("eval.all.", column, "_", reference, ".txt")
   files <- if (reference == "mrbayes") {
     c("Vine" = paste0("vine.", suffix),
-      "Vine + flows" = paste0("vine_flows.", suffix),
+      "Vine --posterior" = paste0("vine_twostage.", suffix),
       "BEAST2" = paste0("beast.", suffix))
   } else {
     c("Vine" = paste0("vine.", suffix),
-      "Vine + flows" = paste0("vine_flows.", suffix),
+      "Vine --posterior" = paste0("vine_twostage.", suffix),
       "MrBayes" = paste0("mrbayes.", suffix))
   }
   reference_method <- if (reference == "mrbayes") "MrBayes" else "BEAST2"
@@ -104,11 +117,11 @@ panel_b <- kl_plot(
   "Pairwise-distance KL divergence\nfrom BEAST2"
 )
 panel_c <- kl_plot(
-  collect_kl("topo", "mrbayes"),
+  collect_kl("topo_refnorm", "mrbayes"),
   "Per-split topology KL divergence\nfrom MrBayes"
 )
 panel_d <- kl_plot(
-  collect_kl("topo", "beast"),
+  collect_kl("topo_refnorm", "beast"),
   "Per-split topology KL divergence\nfrom BEAST2"
 )
 

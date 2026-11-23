@@ -6,9 +6,9 @@ Usage:
   python plot_posterior_quality.py [options]
 
   --taxa       Space-separated list of taxa counts  (default: 10 25 50 100 250)
-  --root       Root directory containing {n}taxa/    (default: script directory)
-  --out        Output directory for plots            (default: <root>/plots)
-  --methods    Method summary prefixes               (default: vine vine_flows vine_mixture vine_mixture_flows)
+  --root       Root directory containing {n}taxa/    (default: ../../dna_sims/hky_300sites_posterior_quality)
+  --out        Output directory for plots            (default: <this folder>/plots)
+  --methods    Method summary prefixes               (default: vine vine_twostage)
   --labels     Optional plot labels for vine methods (default: inferred from --methods)
 """
 import argparse
@@ -19,11 +19,11 @@ from matplotlib.lines import Line2D
 import numpy as np
 
 
-DEFAULT_METHODS = ["vine", "vine_flows", "vine_mixture", "vine_mixture_flows"]
+DEFAULT_METHODS = ["vine", "vine_twostage"]
 METHOD_LABELS = {
     "bootstrap_nj": "Bootstrap NJ",
     "vine": "Vine",
-    "vine_flows": "Vine + flows",
+    "vine_twostage": "Vine --posterior",
     "vine_mixture": "Vine + mixture",
     "vine_mixture_flows": "Vine + mixture + flows",
 }
@@ -44,7 +44,8 @@ def parse_args():
         default=None,
         metavar="LABEL",
     )
-    p.add_argument("--root", type=Path, default=Path(__file__).resolve().parent)
+    p.add_argument("--root", type=Path,
+                   default=Path(__file__).resolve().parents[2] / "dna_sims" / "hky_300sites_posterior_quality")
     p.add_argument("--baseline-root", type=Path, default=None,
                    help="Directory containing the original hky_300sites summaries")
     p.add_argument("--out", type=Path, default=None)
@@ -210,7 +211,7 @@ def collect(args, methods, metric):
 METHOD_COLORS = {
     "Bootstrap NJ": "#A0CBE8",
     "Vine": "#F28E2B",
-    "Vine + flows": "#76B7B2",
+    "Vine --posterior": "#76B7B2",
     "Vine + mixture": "#EDC948",
     "Vine + mixture + flows": "#A0CBE8",
     "BEAST2": "#59A14F",
@@ -284,7 +285,7 @@ def collect_kl(args, methods, table_name, column, extra_baselines):
 
 def main():
     args = parse_args()
-    outdir = args.out or (args.root / "plots")
+    outdir = args.out or (Path(__file__).resolve().parent / "plots")
     outdir.mkdir(exist_ok=True)
 
     methods = args.methods

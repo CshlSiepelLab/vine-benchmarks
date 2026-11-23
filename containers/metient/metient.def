@@ -23,8 +23,9 @@ From: python:3.9-slim
         liblzma-dev && \
         rm -rf /var/lib/apt/lists/*
 
-    pip install --no-cache-dir pygraphviz ipython
-    pip install --no-cache-dir metient
+    pip install --no-cache-dir pygraphviz==1.11 ipython==8.18.1
+    # pinned: python/src/run_metient_evaluate.py uses the pre-1.0 API (metient v0.1.3.5.3)
+    pip install --no-cache-dir metient==0.1.3.5.3
 
 %runscript
     #!/bin/bash

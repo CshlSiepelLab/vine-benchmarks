@@ -24,7 +24,7 @@ mkdir bin
 The Makefiles throughout this repository expect Vine and Phast binaries at `bin/vine/bin` and `bin/phast/bin` (the layout produced by Option B). Rather than editing every Makefile's `VINE_BIN`/`PHAST_BIN` paths, symlink the conda-installed binaries into that layout instead:
 ```sh
 mkdir -p bin/vine/bin bin/phast/bin
-for f in vine evalTrees; do ln -s "$(command -v $f)" bin/vine/bin/; done
+for f in vine evalTrees compareTrees crisprLnl; do ln -s "$(command -v $f)" bin/vine/bin/; done
 for f in phyloFit tree_doctor base_evolve; do ln -s "$(command -v $f)" bin/phast/bin/; done
 ```
 
@@ -36,18 +36,18 @@ mkdir bin
 cd bin
 ```
 
-Install Phast in the binary directory:
+Install Phast v1.9.9 in the binary directory:
 ```sh
-git clone git@github.com:CshlSiepelLab/phast.git
+git clone --branch v1.9.9 --depth 1 git@github.com:CshlSiepelLab/phast.git
 cd phast
 cmake -S . -B build -DCMAKE_INSTALL_PREFIX="$(pwd)"
 cmake --build build
 cmake --install build
 ```
 
-Install Vine in the binary directory:
+Install Vine v0.4.2 in the binary directory:
 ```sh
-git clone git@github.com:CshlSiepelLab/vine.git
+git clone --branch v0.4.2 --depth 1 git@github.com:CshlSiepelLab/vine.git
 cd vine
 cd bin/vine
 cmake -S . -B build \
@@ -66,15 +66,17 @@ Follow instructions here: https://www.beast2.org/
 wget https://github.com/CompEvol/beast2/releases/download/v2.7.7/BEAST.v2.7.7.Linux.x86.tgz
 tar -zxvf BEAST.v2.7.7.Linux.x86.tgz
 ./beast/bin/packagemanager -list
-./beast/bin/packagemanager -add feast
+./beast/bin/packagemanager -add feast -version 10.6.1
+./beast/bin/packagemanager -add beam -version 0.6.0   # BEAM, for the CRISPR and tissue-migration benchmarks
 ```
 
 ### Install MrBayes in Binary Directory
 
-Follow instructions here: https://github.com/NBISweden/MrBayes/blob/develop/INSTALL
+MrBayes 3.2.7a, the version used in the paper. Follow instructions here: https://github.com/NBISweden/MrBayes/blob/v3.2.7a/INSTALL
 
 ```sh
-git clone --depth=1 https://github.com/NBISweden/MrBayes.git
+git clone --branch v3.2.7a --depth 1 https://github.com/NBISweden/MrBayes.git
+cd MrBayes
 ./configure
 make
 make install-exec bindir=/path/to/bin

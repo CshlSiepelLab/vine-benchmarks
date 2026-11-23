@@ -20,8 +20,10 @@ From: python:3.12-slim
         time && \
         rm -rf /var/lib/apt/lists/*
 
-    pip install --no-cache-dir gurobipy
-    pip install --no-cache-dir mach2
+    # pinned to the Gurobi version tested with the WLS academic license (2026-11-20);
+    # the license file is bound in at run time (GRB_LICENSE_FILE), never copied in
+    pip install --no-cache-dir gurobipy==13.0.1
+    pip install --no-cache-dir mach2==1.0.2
 
 %runscript
     #!/bin/bash

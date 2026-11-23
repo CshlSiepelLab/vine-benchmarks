@@ -7,8 +7,9 @@ From: python:3.10-slim
 %files
     laml.def /opt/laml/laml.def
 
-    # Need active (not expired) Mosek license for LAML
-    ~/bin/mosek.lic /opt/build/mosek.lic
+# LAML needs an active (not expired) Mosek license. It is deliberately not
+# copied into the image: Mosek reads $HOME/mosek/mosek.lic at run time, and
+# Singularity mounts the running user's home directory into the container.
 
 %post
     set -eux
@@ -29,11 +30,10 @@ From: python:3.10-slim
 
     # Install Cassiopeia
     pip install laml==1.0.5
-    pip install scikit-bio
+    pip install scikit-bio==0.7.4
 
 %environment
     export PATH="/usr/local/bin:$PATH"
-    export MOSEKLM_LICENSE_FILE="/opt/build/mosek.lic"
 
 %runscript
     exec "$@"

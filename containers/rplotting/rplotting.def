@@ -27,12 +27,15 @@ From: rocker/r-ver:4.3.2
         git \
         && apt-get clean
 
-    # CRAN packages
+    # CRAN packages, pinned to the CRAN snapshot of the image's build date
+    # (2026-11-16) via Posit Package Manager: ggplot2 4.0.4, cowplot 1.2.0,
+    # patchwork 1.3.2, dplyr 1.2.1, scales 1.4.0, ape 5.7.1, phytools 2.1.1, ...
+    # ggpubr and ragg were listed here but never installed in the benchmark image
+    # (ragg needs FreeType headers at build time), so they are left out.
     R -e "install.packages(c(
         'ggplot2',
         'cowplot',
         'patchwork',
-        'ggpubr',
         'gridExtra',
         'dplyr',
         'tidyr',
@@ -46,21 +49,19 @@ From: rocker/r-ver:4.3.2
         'ggraph',
         'tidygraph',
         'svglite',
-        'ragg',
         'Cairo',
         'extrafont',
         'showtext',
-        'optparse'
-    ), repos='https://cloud.r-project.org')"
-
-    # Bioconductor packages
-    R -e "install.packages('BiocManager', repos='https://cloud.r-project.org')"
-    R -e "BiocManager::install(c(
-        'ggtree',
-        'treeio',
+        'optparse',
         'ape',
         'phytools'
-    ), ask=FALSE, update=FALSE)"
+    ), repos='https://packagemanager.posit.co/cran/2026-11-16')"
+
+    # Bioconductor 3.18 (matches R 4.3): treeio 1.26.0. ggtree, listed here
+    # originally, fails to install against ggplot2 4.x; Figure 5 adds it from
+    # install_fig5_lib.sh instead.
+    R -e "install.packages('BiocManager', repos='https://packagemanager.posit.co/cran/2026-11-16')"
+    R -e "options(repos = c(CRAN = 'https://packagemanager.posit.co/cran/2026-11-16')); BiocManager::install(version = '3.18', ask = FALSE, update = FALSE); BiocManager::install('treeio', ask = FALSE, update = FALSE)"
 
 %runscript
     exec R "$@"
